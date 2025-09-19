@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { LoginForm } from '@/components/auth/login-form';
+import { RegisterForm } from '@/components/auth/register-form';
 import Logo from '@/components/icons/logo';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
@@ -11,25 +11,20 @@ export default function LoginPage() {
             <Logo className="h-16 w-16 text-primary" />
           </Link>
           <h1 className="mt-4 font-headline text-3xl font-bold">
-            Welcome Back
+            Create an Account
           </h1>
           <p className="text-muted-foreground">
-            Sign in to access your dashboard.
+            Join our community to start learning.
           </p>
         </div>
-        <LoginForm />
+        <RegisterForm />
         <div className="mt-4 text-center text-sm">
-          <p>
-            Don&apos;t have an account?{' '}
-            <Link href="/register" className="underline">
-              Register
-            </Link>
-          </p>
-          <p className="mt-2">
-            <Link href="#" className="underline">
-              Forgot your password?
-            </Link>
-          </p>
+            <p>
+                Already have an account?{' '}
+                <Link href="/login" className="underline">
+                    Login
+                </Link>
+            </p>
         </div>
       </div>
     </div>
