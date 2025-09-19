@@ -103,9 +103,9 @@ export default function DashboardLayout({
       </Sidebar>
       <SidebarInset>
         <header className="flex h-16 items-center justify-between border-b bg-card px-6">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <SidebarTrigger className="md:hidden" />
-            <h2 className="font-headline text-xl font-semibold capitalize">
+            <h2 className="font-headline text-xl font-semibold capitalize hidden sm:block">
               {userRole} Dashboard
             </h2>
           </div>
