@@ -1,6 +1,7 @@
+
 import { PaymentStatusCard } from "@/components/dashboard/payment-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_COURSES, MOCK_EVENTS, MOCK_USERS } from "@/lib/mock-data";
+import { MOCK_COURSES, MOCK_EVENTS, MOCK_PAYMENTS, MOCK_USERS } from "@/lib/mock-data";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, Calendar } from "lucide-react";
@@ -9,6 +10,8 @@ import { ArrowRight, BookOpen, Calendar } from "lucide-react";
 const user = MOCK_USERS.student;
 const enrolledCourses = MOCK_COURSES.filter(course => user.enrolledCourseIds?.includes(course.id));
 const upcomingEvents = MOCK_EVENTS.filter(event => !event.isPast).slice(0, 2);
+// In a real app, you'd fetch the primary payment details for the user
+const paymentDetails = MOCK_PAYMENTS;
 
 
 export default function DashboardPage() {
@@ -25,7 +28,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <PaymentStatusCard />
+          <PaymentStatusCard paymentDetails={paymentDetails}/>
         </div>
 
         <div className="space-y-6">
