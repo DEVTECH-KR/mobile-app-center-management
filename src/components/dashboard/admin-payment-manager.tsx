@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MOCK_USERS, MOCK_PAYMENTS, MOCK_COURSES } from "@/lib/mock-data";
+import { MOCK_USERS, MOCK_PAYMENTS, MOCK_COURSES, MOCK_CLASSES } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
@@ -25,64 +25,89 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileUp, Loader2, Search } from "lucide-react";
 import { useState } from "react";
-import type { Installment, PaymentDetails, User } from "@/lib/types";
+import type { Installment, PaymentDetails, User, Class, Course } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { statusColors } from "./payment-status";
 import { Checkbox } from "../ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
-type StudentPayment = User & { paymentDetails: PaymentDetails | null };
 
-const allStudents = Object.values(MOCK_USERS).filter(u => u.role === 'student');
+type StudentEnrollment = {
+    user: User;
+    class: Class;
+    course: Course;
+    paymentDetails: PaymentDetails | null;
+}
 
-const getInitialStudentPayments = (): StudentPayment[] => allStudents.map(student => {
-    let paymentDetails: PaymentDetails | null = null;
-    
-    // In a real app, you'd fetch this from a DB.
-    // Here we assign payment details to student 'user-1' and a modified version to 'user-2'
-    if (student.id === 'user-1') {
-        paymentDetails = JSON.parse(JSON.stringify(MOCK_PAYMENTS));
-    } else if (student.id === 'user-2') {
-         const courseForUser2 = MOCK_COURSES.find(c => student.enrolledCourseIds?.includes(c.id));
-         if(courseForUser2) {
-             const installmentAmount = courseForUser2.price / 4;
-             paymentDetails = {
-                 userId: 'user-2',
-                 courseId: courseForUser2.id,
-                 registrationFee: 20000,
-                 totalDue: 20000 + courseForUser2.price,
-                 totalPaid: 20000 + installmentAmount,
-                 installments: [
-                    { name: 'Registration Fee', amount: 20000, status: 'Paid', dueDate: '2024-02-01' },
-                    { name: 'Installment 1', amount: installmentAmount, status: 'Paid', dueDate: '2024-02-01' },
-                    { name: 'Installment 2', amount: installmentAmount, status: 'Unpaid', dueDate: '2024-03-01' },
-                    { name: 'Installment 3', amount: installmentAmount, status: 'Unpaid', dueDate: '2024-04-01' },
-                    { name: 'Installment 4', amount: installmentAmount, status: 'Unpaid', dueDate: '2024-05-01' },
-                 ]
-             };
-         }
-    }
-    
-    return {
-        ...student,
-        paymentDetails
-    }
-});
+const createInitialEnrollments = (): StudentEnrollment[] => {
+    const enrollments: StudentEnrollment[] = [];
+    const allUsers = Object.values(MOCK_USERS);
+
+    allUsers.forEach(user => {
+        if (user.role === 'student' && user.classIds) {
+            user.classIds.forEach(classId => {
+                const cls = MOCK_CLASSES.find(c => c.id === classId);
+                if (cls) {
+                    const course = MOCK_COURSES.find(c => c.id === cls.courseId);
+                    if (course) {
+                         // Find or create payment details for this specific enrollment
+                         let paymentDetails: PaymentDetails | null = null;
+                         if (user.id === 'user-1' && course.id === 'course-1') {
+                            paymentDetails = JSON.parse(JSON.stringify(MOCK_PAYMENTS));
+                         } else { // Create some default/mock payment details for others
+                             const totalDue = course.price + 20000; // price + registration
+                             paymentDetails = {
+                                userId: user.id,
+                                courseId: course.id,
+                                registrationFee: 20000,
+                                totalDue: totalDue,
+                                totalPaid: 0,
+                                installments: [
+                                    { name: 'Registration Fee', amount: 20000, status: 'Unpaid', dueDate: '2024-08-01' },
+                                    { name: 'Installment 1', amount: course.price / 4, status: 'Unpaid', dueDate: '2024-09-01' },
+                                    { name: 'Installment 2', amount: course.price / 4, status: 'Unpaid', dueDate: '2024-10-01' },
+                                    { name: 'Installment 3', amount: course.price / 4, status: 'Unpaid', dueDate: '2024-11-01' },
+                                    { name: 'Installment 4', amount: course.price / 4, status: 'Unpaid', dueDate: '2024-12-01' },
+                                ]
+                             };
+                             if (user.id === 'user-2') { // Give student2 a partially paid status
+                                 paymentDetails.totalPaid = 20000 + (course.price / 4);
+                                 paymentDetails.installments[0].status = 'Paid';
+                                 paymentDetails.installments[1].status = 'Paid';
+                             }
+                         }
+
+                        enrollments.push({
+                            user,
+                            class: cls,
+                            course,
+                            paymentDetails,
+                        });
+                    }
+                }
+            });
+        }
+    });
+
+    return enrollments;
+}
 
 
 export function AdminPaymentManager() {
-    const [studentPayments, setStudentPayments] = useState<StudentPayment[]>(getInitialStudentPayments());
-    const [selectedStudent, setSelectedStudent] = useState<StudentPayment | null>(null);
+    const [enrollments, setEnrollments] = useState<StudentEnrollment[]>(createInitialEnrollments());
+    const [selectedEnrollment, setSelectedEnrollment] = useState<StudentEnrollment | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pendingInstallments, setPendingInstallments] = useState<Installment[]>([]);
+    const [filter, setFilter] = useState({classId: 'all', searchTerm: ''});
     const { toast } = useToast();
 
-    const handleOpenDialog = (student: StudentPayment) => {
-        if (!student.paymentDetails) return;
-        setSelectedStudent(student);
-        // Deep copy to avoid direct state mutation before saving
-        setPendingInstallments(JSON.parse(JSON.stringify(student.paymentDetails.installments)));
+    const handleOpenDialog = (enrollment: StudentEnrollment) => {
+        if (!enrollment.paymentDetails) return;
+        setSelectedEnrollment(enrollment);
+        setPendingInstallments(JSON.parse(JSON.stringify(enrollment.paymentDetails.installments)));
         setIsDialogOpen(true);
     };
 
@@ -95,96 +120,137 @@ export function AdminPaymentManager() {
     };
 
     const handleSaveChanges = () => {
-        if (!selectedStudent || !selectedStudent.paymentDetails) return;
+        if (!selectedEnrollment || !selectedEnrollment.paymentDetails) return;
         
         setIsSubmitting(true);
-        // Simulate API call
         setTimeout(() => {
             const newTotalPaid = pendingInstallments
                 .filter(i => i.status === 'Paid')
                 .reduce((sum, i) => sum + i.amount, 0);
 
             const updatedPaymentDetails: PaymentDetails = {
-                ...selectedStudent.paymentDetails!,
+                ...selectedEnrollment.paymentDetails!,
                 installments: pendingInstallments,
                 totalPaid: newTotalPaid,
             };
 
-            // This is where you would persist the changes to your backend
-            // For now, we update the local state
-            setStudentPayments(prev => prev.map(sp =>
-                sp.id === selectedStudent.id
-                    ? { ...sp, paymentDetails: updatedPaymentDetails }
-                    : sp
+            setEnrollments(prev => prev.map(e =>
+                (e.user.id === selectedEnrollment.user.id && e.class.id === selectedEnrollment.class.id)
+                    ? { ...e, paymentDetails: updatedPaymentDetails }
+                    : e
             ));
 
             setIsSubmitting(false);
             setIsDialogOpen(false);
-            setSelectedStudent(null);
+            setSelectedEnrollment(null);
             toast({
                 title: "Payment Updated",
-                description: `Payment record for ${selectedStudent.name} has been successfully updated.`,
+                description: `Payment record for ${selectedEnrollment.user.name} has been successfully updated.`,
             });
         }, 500);
     };
-
 
     const currencyFormatter = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "FBU",
         minimumFractionDigits: 0,
     });
+
+    const filteredEnrollments = enrollments.filter(e => {
+        const matchesClass = filter.classId === 'all' || e.class.id === filter.classId;
+        const matchesSearch = filter.searchTerm === '' ||
+            e.user.name.toLowerCase().includes(filter.searchTerm.toLowerCase()) ||
+            e.user.email.toLowerCase().includes(filter.searchTerm.toLowerCase());
+        return matchesClass && matchesSearch;
+    });
     
   return (
     <>
-      <div className="mb-4 flex items-center justify-between">
-          <div className="relative w-full max-w-sm">
+      <div className="mb-4 flex flex-col md:flex-row items-center gap-4">
+          <div className="relative w-full md:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
-              <Input placeholder="Filter by name or email..." className="pl-9"/>
+              <Input
+                placeholder="Filter by student name or email..."
+                className="pl-9"
+                value={filter.searchTerm}
+                onChange={(e) => setFilter(prev => ({...prev, searchTerm: e.target.value}))}
+              />
           </div>
+          <Select value={filter.classId} onValueChange={(value) => setFilter(prev => ({...prev, classId: value}))}>
+              <SelectTrigger className="w-full md:w-[280px]">
+                  <SelectValue placeholder="Filter by class" />
+              </SelectTrigger>
+              <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {MOCK_CLASSES.map(c => {
+                      const course = MOCK_COURSES.find(co => co.id === c.courseId);
+                      return <SelectItem key={c.id} value={c.id}>{c.name} ({course?.title})</SelectItem>
+                  })}
+              </SelectContent>
+          </Select>
       </div>
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Student</TableHead>
-              <TableHead>Course</TableHead>
+              <TableHead>Class</TableHead>
               <TableHead>Payment Progress</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {studentPayments.map((student) => {
-              const course = MOCK_COURSES.find(c => student.paymentDetails?.courseId === c.id);
+            {filteredEnrollments.length === 0 && (
+                <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">No results found.</TableCell>
+                </TableRow>
+            )}
+            {filteredEnrollments.map((enrollment) => {
+              const { user, course, class: cls, paymentDetails } = enrollment;
 
-              if (!student.paymentDetails) {
+              if (!paymentDetails) {
                  return (
-                    <TableRow key={student.id}>
+                    <TableRow key={`${user.id}-${cls.id}`}>
                         <TableCell>
-                            <div className="font-medium">{student.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                            {student.email}
+                            <div className="flex items-center gap-3">
+                                <Avatar>
+                                    <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <div className="font-medium">{user.name}</div>
+                                    <div className="text-sm text-muted-foreground">{user.email}</div>
+                                </div>
                             </div>
                         </TableCell>
-                         <TableCell>{MOCK_COURSES.find(c => student.enrolledCourseIds?.includes(c.id))?.title || 'N/A'}</TableCell>
+                         <TableCell>{cls.name} ({course.title})</TableCell>
                         <TableCell colSpan={3} className="text-muted-foreground text-center">No payment records found.</TableCell>
                     </TableRow>
                  )
               }
-              const { totalPaid, totalDue } = student.paymentDetails;
+              const { totalPaid, totalDue } = paymentDetails;
               const progress = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
               const isFullyPaid = progress >= 100;
               
               return (
-                <TableRow key={student.id}>
+                <TableRow key={`${user.id}-${cls.id}`}>
                   <TableCell>
-                    <div className="font-medium">{student.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {student.email}
+                     <div className="flex items-center gap-3">
+                        <Avatar>
+                            <AvatarImage src={user.avatarUrl} alt={user.name} />
+                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                        </div>
                     </div>
                   </TableCell>
-                  <TableCell>{course?.title}</TableCell>
+                  <TableCell>
+                      <div className="font-medium">{cls.name}</div>
+                      <div className="text-sm text-muted-foreground">{course.title} - {cls.level}</div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       <Progress value={progress} />
@@ -197,7 +263,7 @@ export function AdminPaymentManager() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenDialog(student)}>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenDialog(enrollment)}>
                       Update Payment
                     </Button>
                   </TableCell>
@@ -211,9 +277,9 @@ export function AdminPaymentManager() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Payment Record for {selectedStudent?.name}</DialogTitle>
+            <DialogTitle>Update Payment for {selectedEnrollment?.user.name}</DialogTitle>
             <DialogDescription>
-              Mark installments as paid. The student's payment status will be updated accordingly.
+              Course: {selectedEnrollment?.course.title} - {selectedEnrollment?.class.level}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -258,3 +324,5 @@ export function AdminPaymentManager() {
     </>
   );
 }
+
+    
