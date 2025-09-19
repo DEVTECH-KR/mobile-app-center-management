@@ -10,7 +10,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Home, Library, CreditCard, Calendar, FileText, Settings, Shield, User as UserIcon, LogOut } from 'lucide-react';
+import { Home, Library, CreditCard, Calendar, FileText, Settings, Shield, User as UserIcon, LogOut, BookMarked } from 'lucide-react';
 import { UserNav } from "@/components/dashboard/user-nav";
 import Link from "next/link";
 import Logo from "@/components/icons/logo";
@@ -33,6 +33,7 @@ const studentNav = [
 const adminNav = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
   { href: "/dashboard/courses", icon: Library, label: "Manage Courses" },
+  { href: "/dashboard/classes", icon: BookMarked, label: "Manage Classes" },
   { href: "/dashboard/payments", icon: CreditCard, label: "Manage Payments" },
   { href: "/dashboard/users", icon: UserIcon, label: "Manage Users" },
   { href: "/dashboard/events", icon: Calendar,label: "Manage Events" },

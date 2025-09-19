@@ -7,6 +7,7 @@ export type User = {
   role: UserRole;
   avatarUrl?: string;
   enrolledCourseIds?: string[];
+  classIds?: string[]; // For students and teachers
 };
 
 export type Course = {
@@ -18,7 +19,17 @@ export type Course = {
   schedule: string;
   imageUrl: string;
   imageHint: string;
+  levels?: string[]; // e.g., ['Beginner', 'Intermediate', 'Advanced']
 };
+
+export type Class = {
+    id: string;
+    name: string; // e.g. "Room A"
+    courseId: string;
+    level: string;
+    teacherId: string | null;
+    studentIds: string[];
+}
 
 export type PaymentStatus = "Paid" | "Unpaid" | "Pending";
 
@@ -50,7 +61,7 @@ export type Event = {
 };
 
 export type Document = {
-  id: string;
+  id:string;
   courseId: string;
   title: string;
   fileUrl: string;

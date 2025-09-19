@@ -1,4 +1,4 @@
-import { User, Course, PaymentDetails, Event, Document, UserRole, Partner } from './types';
+import { User, Course, PaymentDetails, Event, Document, UserRole, Partner, Class } from './types';
 
 export const MOCK_USERS: { [key: string]: User } = {
   student: {
@@ -8,6 +8,16 @@ export const MOCK_USERS: { [key: string]: User } = {
     role: 'student',
     avatarUrl: 'https://picsum.photos/seed/101/100/100',
     enrolledCourseIds: ['course-1', 'course-2'],
+    classIds: ['class-1'],
+  },
+  student2: {
+    id: 'user-2',
+    name: 'Jane Smith',
+    email: 'jane@example.com',
+    role: 'student',
+    avatarUrl: 'https://picsum.photos/seed/103/100/100',
+    enrolledCourseIds: ['course-3'],
+    classIds: ['class-3'],
   },
   teacher: {
     id: 'user-teacher',
@@ -16,6 +26,16 @@ export const MOCK_USERS: { [key: string]: User } = {
     role: 'teacher',
     avatarUrl: 'https://picsum.photos/seed/201/200/200',
     enrolledCourseIds: ['course-2'],
+    classIds: ['class-2'],
+  },
+  teacher2: {
+    id: 'user-teacher2',
+    name: 'Marcus Chen',
+    email: 'm.chen@ffbf.com',
+    role: 'teacher',
+    avatarUrl: 'https://picsum.photos/seed/202/200/200',
+    enrolledCourseIds: ['course-1'],
+    classIds: ['class-1']
   },
   admin: {
     id: 'user-admin',
@@ -32,10 +52,11 @@ export const MOCK_COURSES: Course[] = [
     title: 'Office (Bureautics)',
     description: 'Master the full Microsoft Office suite, from Word and Excel to PowerPoint and Outlook.',
     price: 50000,
-    teacherIds: ['teacher-1'],
+    teacherIds: ['user-teacher2'],
     schedule: 'Mon, Wed, Fri | 9:00 - 11:00 AM',
     imageUrl: 'https://picsum.photos/seed/1/600/400',
     imageHint: 'computer desk',
+    levels: ['Beginner', 'Advanced'],
   },
   {
     id: 'course-2',
@@ -46,6 +67,7 @@ export const MOCK_COURSES: Course[] = [
     schedule: 'Tue, Thu | 6:00 - 8:00 PM',
     imageUrl: 'https://picsum.photos/seed/2/600/400',
     imageHint: 'code screen',
+    levels: ['Fundamentals', 'Advanced React'],
   },
   {
     id: 'course-3',
@@ -56,7 +78,14 @@ export const MOCK_COURSES: Course[] = [
     schedule: 'Sat | 10:00 AM - 1:00 PM',
     imageUrl: 'https://picsum.photos/seed/3/600/400',
     imageHint: 'books library',
+    levels: ['First Level', 'Second Level'],
   },
+];
+
+export const MOCK_CLASSES: Class[] = [
+    { id: 'class-1', name: 'Room A', courseId: 'course-1', level: 'Beginner', teacherId: 'user-teacher2', studentIds: ['user-1'] },
+    { id: 'class-2', name: 'Lab 1', courseId: 'course-2', level: 'Fundamentals', teacherId: 'user-teacher', studentIds: [] },
+    { id: 'class-3', name: 'Room B', courseId: 'course-3', level: 'First Level', teacherId: null, studentIds: ['user-2'] },
 ];
 
 const officeMinerval = MOCK_COURSES.find(c => c.id === 'course-1')?.price || 0;
