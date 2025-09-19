@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from "react";
@@ -55,6 +56,7 @@ const formSchema = z.object({
   imageUrl: z.string().min(1, { message: "An image is required." }),
   imageHint: z.string().optional(),
   teacherIds: z.array(z.string()).optional(),
+  otherInstructorName: z.string().optional(),
 });
 
 
@@ -63,6 +65,7 @@ export default function CoursesPage() {
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [showOtherInstructorField, setShowOtherInstructorField] = useState(false);
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -93,13 +96,19 @@ export default function CoursesPage() {
     const handleOpenCreateDialog = () => {
         setEditingCourse(null);
         setImagePreview(null);
-        form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "", teacherIds: [] });
+        setShowOtherInstructorField(false);
+        form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "", teacherIds: [], otherInstructorName: "" });
         setIsFormDialogOpen(true);
     };
 
     const handleOpenEditDialog = (course: Course) => {
         setEditingCourse(course);
         setImagePreview(course.imageUrl);
+        // A bit of a simplification: if there are teacher IDs not in the known list, we assume it was an 'other'
+        const knownTeacherIds = allTeachers.map(t => t.id);
+        const hasOther = course.teacherIds.some(id => !knownTeacherIds.includes(id));
+        setShowOtherInstructorField(hasOther);
+        
         form.reset(course);
         setIsFormDialogOpen(true);
     };
@@ -119,6 +128,11 @@ export default function CoursesPage() {
             setTimeout(() => {
                 if (editingCourse) {
                     const updatedCourse = { ...editingCourse, ...values };
+                     if (values.otherInstructorName) {
+                        // In a real app, you'd create a new teacher user here and get an ID
+                        const newTeacherId = `user-other-${Date.now()}`;
+                        updatedCourse.teacherIds = [...(updatedCourse.teacherIds || []), newTeacherId];
+                    }
                     setCourses(prev => prev.map(c => c.id === editingCourse.id ? updatedCourse : c));
                     toast({
                         title: "Course Updated",
@@ -130,6 +144,12 @@ export default function CoursesPage() {
                         ...values,
                         teacherIds: values.teacherIds || [],
                     }
+                    if (values.otherInstructorName) {
+                        // In a real app, you'd create a new teacher user here and get an ID
+                        const newTeacherId = `user-other-${Date.now()}`;
+                        newCourse.teacherIds.push(newTeacherId);
+                        // You might also want to add this new teacher to a global state/mock data list
+                    }
                     setCourses(prev => [newCourse, ...prev]);
                     toast({
                         title: "Course Created",
@@ -139,6 +159,7 @@ export default function CoursesPage() {
                 setIsFormDialogOpen(false);
                 setEditingCourse(null);
                 setImagePreview(null);
+                setShowOtherInstructorField(false);
                 form.reset();
             }, 500);
         })()
@@ -334,6 +355,19 @@ export default function CoursesPage() {
                                                             {teacher.name}
                                                             </CommandItem>
                                                         ))}
+                                                        <CommandItem
+                                                            onSelect={() => {
+                                                                setShowOtherInstructorField(!showOtherInstructorField)
+                                                            }}
+                                                            >
+                                                             <CheckIcon
+                                                                className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                showOtherInstructorField ? "opacity-100" : "opacity-0"
+                                                                )}
+                                                            />
+                                                            Other
+                                                        </CommandItem>
                                                     </CommandList>
                                                 </CommandGroup>
                                             </Command>
@@ -343,6 +377,17 @@ export default function CoursesPage() {
                                     </FormItem>
                                 )}
                             />
+
+                            {showOtherInstructorField && (
+                                <FormField control={form.control} name="otherInstructorName" render={({ field }) => (
+                                    <FormItem className="md:col-span-2">
+                                        <FormLabel>Other Instructor Name</FormLabel>
+                                        <FormControl><Input placeholder="Enter instructor's name" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                            )}
+
                             <div className="md:col-span-2 space-y-2">
                                 <FormLabel>Course Image</FormLabel>
                                  <FormMessage {...form.getFieldState("imageUrl")}/>
@@ -444,3 +489,5 @@ export default function CoursesPage() {
     </div>
   );
 }
+
+    
