@@ -5,7 +5,7 @@ import { EventCard } from "@/components/dashboard/event-card";
 import { MOCK_EVENTS, MOCK_USERS } from "@/lib/mock-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Edit, Eye, Loader2, MoreVertical, PlusCircle, Trash2 } from "lucide-react";
+import { Edit, Eye, FileUp, Loader2, MoreVertical, PlusCircle, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Event } from "@/lib/types";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -199,15 +199,29 @@ export default function EventsPage() {
                                 <FormMessage />
                                 </FormItem>
                             )}/>
-                             <FormField control={form.control} name="imageUrl" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Image URL</FormLabel>
-                                    <FormControl><Input type="url" placeholder="https://picsum.photos/seed/..." {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
+                            <div className="md:col-span-2 space-y-2">
+                                <FormLabel>Event Image</FormLabel>
+                                <div className="flex items-center gap-2">
+                                    <FormField control={form.control} name="imageUrl" render={({ field }) => (
+                                        <FormItem className="flex-1">
+                                            <FormControl><Input type="url" placeholder="Paste image URL..." {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                     <div className="relative">
+                                        <Button type="button" variant="outline">
+                                            <FileUp className="mr-2 h-4 w-4" />
+                                            Upload
+                                        </Button>
+                                        <Input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled/>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    You can paste a URL or upload a file (upload disabled in prototype).
+                                </p>
+                            </div>
                              <FormField control={form.control} name="imageHint" render={({ field }) => (
-                                <FormItem>
+                                <FormItem className="md:col-span-2">
                                     <FormLabel>Image Hint</FormLabel>
                                     <FormControl><Input placeholder="e.g. 'conference presentation'" {...field} /></FormControl>
                                     <FormMessage />
