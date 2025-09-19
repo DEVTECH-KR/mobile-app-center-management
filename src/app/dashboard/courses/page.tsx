@@ -126,46 +126,44 @@ export default function CoursesPage() {
     }
 
     function onSubmit(values: z.infer<typeof formSchema>) {
-         form.handleSubmit(() => {
-            // Simulate API call
-            setTimeout(() => {
-                if (editingCourse) {
-                    const updatedCourse = { ...editingCourse, ...values };
-                     if (values.otherInstructorName) {
-                        // In a real app, you'd create a new teacher user here and get an ID
-                        const newTeacherId = `user-other-${Date.now()}`;
-                        updatedCourse.teacherIds = [...(updatedCourse.teacherIds || []), newTeacherId];
-                    }
-                    setCourses(prev => prev.map(c => c.id === editingCourse.id ? updatedCourse : c));
-                    toast({
-                        title: "Course Updated",
-                        description: `The course "${updatedCourse.title}" has been updated.`,
-                    });
-                } else {
-                    const newCourse: Course = {
-                        id: `course-${Date.now()}`,
-                        ...values,
-                        teacherIds: values.teacherIds || [],
-                    }
+        // Simulate API call
+        setTimeout(() => {
+            if (editingCourse) {
+                const updatedCourse = { ...editingCourse, ...values };
                     if (values.otherInstructorName) {
-                        // In a real app, you'd create a new teacher user here and get an ID
-                        const newTeacherId = `user-other-${Date.now()}`;
-                        newCourse.teacherIds.push(newTeacherId);
-                        // You might also want to add this new teacher to a global state/mock data list
-                    }
-                    setCourses(prev => [newCourse, ...prev]);
-                    toast({
-                        title: "Course Created",
-                        description: `The course "${newCourse.title}" has been successfully created.`,
-                    });
+                    // In a real app, you'd create a new teacher user here and get an ID
+                    const newTeacherId = `user-other-${Date.now()}`;
+                    updatedCourse.teacherIds = [...(updatedCourse.teacherIds || []), newTeacherId];
                 }
-                setIsFormDialogOpen(false);
-                setEditingCourse(null);
-                setImagePreview(null);
-                setShowOtherInstructorField(false);
-                form.reset();
-            }, 500);
-        })()
+                setCourses(prev => prev.map(c => c.id === editingCourse.id ? updatedCourse : c));
+                toast({
+                    title: "Course Updated",
+                    description: `The course "${updatedCourse.title}" has been updated.`,
+                });
+            } else {
+                const newCourse: Course = {
+                    id: `course-${Date.now()}`,
+                    ...values,
+                    teacherIds: values.teacherIds || [],
+                }
+                if (values.otherInstructorName) {
+                    // In a real app, you'd create a new teacher user here and get an ID
+                    const newTeacherId = `user-other-${Date.now()}`;
+                    newCourse.teacherIds.push(newTeacherId);
+                    // You might also want to add this new teacher to a global state/mock data list
+                }
+                setCourses(prev => [newCourse, ...prev]);
+                toast({
+                    title: "Course Created",
+                    description: `The course "${newCourse.title}" has been successfully created.`,
+                });
+            }
+            setIsFormDialogOpen(false);
+            setEditingCourse(null);
+            setImagePreview(null);
+            setShowOtherInstructorField(false);
+            form.reset();
+        }, 500);
     }
   
   if (currentUser.role !== 'admin') {
