@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 
 // In a real app, this would come from an auth context
-const user = MOCK_USERS.student;
+const user = MOCK_USERS.admin;
 const allUsers = Object.values(MOCK_USERS);
 const managedCourses = user.role === 'teacher' ? MOCK_COURSES.filter(course => course.teacherIds?.includes(user.id)) : [];
 const enrolledCourses = user.role === 'student' ? MOCK_COURSES.filter(course => user.enrolledCourseIds?.includes(course.id)) : [];

@@ -17,7 +17,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 // In a real app, this would come from an auth context
-const userRole = MOCK_USERS.student.role;
+const userRole = MOCK_USERS.admin.role;
 
 const formSchema = z.object({
   mission: z.string().min(10, { message: "Mission statement is required." }),
@@ -145,4 +145,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
 

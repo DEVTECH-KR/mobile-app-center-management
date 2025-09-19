@@ -4,7 +4,7 @@ import { PaymentStatusCard } from "@/components/dashboard/payment-status";
 import { MOCK_USERS, MOCK_COURSES, MOCK_PAYMENTS } from "@/lib/mock-data";
 
 // In a real app, this would come from an auth context
-const user = MOCK_USERS.student;
+const user = MOCK_USERS.admin;
 // const user = MOCK_USERS.admin;
 
 const studentEnrolledCourses = MOCK_COURSES.filter(c => user.enrolledCourseIds?.includes(c.id));

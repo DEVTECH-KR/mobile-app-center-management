@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, Calendar } from "lucide-react";
 
 // In a real app, this would come from an auth context
-const user = MOCK_USERS.student;
+const user = MOCK_USERS.admin;
 const enrolledCourses = MOCK_COURSES.filter(course => user.enrolledCourseIds?.includes(course.id));
 const upcomingEvents = MOCK_EVENTS.filter(event => !event.isPast).slice(0, 2);
 // In a real app, you'd fetch the primary payment details for the user

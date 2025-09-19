@@ -29,7 +29,7 @@ import Image from "next/image";
 
 
 // In a real app, this would come from an auth context
-const userRole = MOCK_USERS.student.role;
+const userRole = MOCK_USERS.admin.role;
 
 const formSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),

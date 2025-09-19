@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EnrollmentRequest } from "@/lib/types";
 
 // In a real app, this would come from an auth context
-const currentUser = MOCK_USERS.student;
+const currentUser = MOCK_USERS.admin;
 
 
 export default function CourseDetailsPage({ params }: { params: { id: string } }) {

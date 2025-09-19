@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // In a real app, this would come from your auth provider
-const user = MOCK_USERS.student;
+const user = MOCK_USERS.admin;
 const userRole = user.role;
 
 // A student has access if they are enrolled in at least one course.

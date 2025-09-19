@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Image from "next/image";
 
 // In a real app, this would come from an auth context. For now, we simulate it.
-const currentUserKey = 'student'; 
+const currentUserKey = 'admin'; 
 const allUsers = MOCK_USERS;
 
 
