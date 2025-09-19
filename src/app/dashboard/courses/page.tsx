@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState } from "react";
@@ -7,7 +6,7 @@ import { CourseCard } from "@/components/dashboard/course-card";
 import { MOCK_COURSES, MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Edit, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X, Clock, User, Users, Star } from "lucide-react";
-import type { Course, User as UserType, UserRole } from "@/lib/types";
+import type { Course, User as UserType } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -112,7 +111,12 @@ export default function CoursesPage() {
         const hasOther = course.teacherIds.some(id => !knownTeacherIds.includes(id));
         setShowOtherInstructorField(hasOther);
         
-        form.reset(course);
+        form.reset({
+            ...course,
+            teacherIds: course.teacherIds || [],
+            levels: course.levels || [],
+            days: course.days || [],
+        });
         setIsFormDialogOpen(true);
     };
 
@@ -126,44 +130,46 @@ export default function CoursesPage() {
     }
 
     function onSubmit(values: z.infer<typeof formSchema>) {
-        // Simulate API call
-        setTimeout(() => {
-            if (editingCourse) {
-                const updatedCourse = { ...editingCourse, ...values };
+        form.handleSubmit(() => {
+            // Simulate API call
+            setTimeout(() => {
+                if (editingCourse) {
+                    const updatedCourse = { ...editingCourse, ...values };
+                        if (values.otherInstructorName) {
+                        // In a real app, you'd create a new teacher user here and get an ID
+                        const newTeacherId = `user-other-${Date.now()}`;
+                        updatedCourse.teacherIds = [...(updatedCourse.teacherIds || []), newTeacherId];
+                    }
+                    setCourses(prev => prev.map(c => c.id === editingCourse.id ? updatedCourse : c));
+                    toast({
+                        title: "Course Updated",
+                        description: `The course "${updatedCourse.title}" has been updated.`,
+                    });
+                } else {
+                    const newCourse: Course = {
+                        id: `course-${Date.now()}`,
+                        ...values,
+                        teacherIds: values.teacherIds || [],
+                    }
                     if (values.otherInstructorName) {
-                    // In a real app, you'd create a new teacher user here and get an ID
-                    const newTeacherId = `user-other-${Date.now()}`;
-                    updatedCourse.teacherIds = [...(updatedCourse.teacherIds || []), newTeacherId];
+                        // In a real app, you'd create a new teacher user here and get an ID
+                        const newTeacherId = `user-other-${Date.now()}`;
+                        newCourse.teacherIds.push(newTeacherId);
+                        // You might also want to add this new teacher to a global state/mock data list
+                    }
+                    setCourses(prev => [newCourse, ...prev]);
+                    toast({
+                        title: "Course Created",
+                        description: `The course "${newCourse.title}" has been successfully created.`,
+                    });
                 }
-                setCourses(prev => prev.map(c => c.id === editingCourse.id ? updatedCourse : c));
-                toast({
-                    title: "Course Updated",
-                    description: `The course "${updatedCourse.title}" has been updated.`,
-                });
-            } else {
-                const newCourse: Course = {
-                    id: `course-${Date.now()}`,
-                    ...values,
-                    teacherIds: values.teacherIds || [],
-                }
-                if (values.otherInstructorName) {
-                    // In a real app, you'd create a new teacher user here and get an ID
-                    const newTeacherId = `user-other-${Date.now()}`;
-                    newCourse.teacherIds.push(newTeacherId);
-                    // You might also want to add this new teacher to a global state/mock data list
-                }
-                setCourses(prev => [newCourse, ...prev]);
-                toast({
-                    title: "Course Created",
-                    description: `The course "${newCourse.title}" has been successfully created.`,
-                });
-            }
-            setIsFormDialogOpen(false);
-            setEditingCourse(null);
-            setImagePreview(null);
-            setShowOtherInstructorField(false);
-            form.reset();
-        }, 500);
+                setIsFormDialogOpen(false);
+                setEditingCourse(null);
+                setImagePreview(null);
+                setShowOtherInstructorField(false);
+                form.reset();
+            }, 500);
+        })();
     }
   
   if (currentUser.role !== 'admin') {
@@ -179,7 +185,12 @@ export default function CoursesPage() {
             </div>
             <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {courses.map((course) => (
-                    <CourseCard key={course.id} course={course} userRole={currentUser.role as UserRole}/>
+                    <CourseCard 
+                        key={course.id} 
+                        course={course} 
+                        userRole={currentUser.role}
+                        isEnrolled={currentUser.enrolledCourseIds?.includes(course.id)}
+                    />
                 ))}
             </div>
         </div>
@@ -323,9 +334,9 @@ export default function CoursesPage() {
                                                     checked={field.value?.includes(level)}
                                                     onCheckedChange={(checked) => {
                                                     return checked
-                                                        ? field.onChange([...field.value, level])
+                                                        ? field.onChange([...(field.value || []), level])
                                                         : field.onChange(
-                                                            field.value?.filter(
+                                                            (field.value || [])?.filter(
                                                             (value) => value !== level
                                                             )
                                                         )
@@ -491,7 +502,7 @@ export default function CoursesPage() {
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => (
                 <div key={course.id} className="relative group">
-                    <CourseCard course={course} userRole={currentUser.role as UserRole} />
+                    <CourseCard course={course} userRole={currentUser.role} />
                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -535,3 +546,5 @@ export default function CoursesPage() {
     </div>
   );
 }
+
+    

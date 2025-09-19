@@ -2,10 +2,10 @@
 "use client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { MOCK_COURSES, MOCK_PAYMENTS } from "@/lib/mock-data";
+import { MOCK_COURSES } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import type { PaymentStatus } from "@/lib/types";
+import type { PaymentDetails, PaymentStatus } from "@/lib/types";
 
 export const statusColors: Record<PaymentStatus, string> = {
   Paid: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 border-green-200 dark:border-green-700",
@@ -13,10 +13,8 @@ export const statusColors: Record<PaymentStatus, string> = {
   Pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 border-yellow-200 dark:border-yellow-700",
 };
 
-export function PaymentStatusCard() {
-  // In a real app, this data would be fetched for the logged-in user.
-  // We're just using the mock data for now.
-  const { totalPaid, totalDue, installments, courseId } = MOCK_PAYMENTS;
+export function PaymentStatusCard({ paymentDetails }: { paymentDetails: PaymentDetails }) {
+  const { totalPaid, totalDue, installments, courseId } = paymentDetails;
   const course = MOCK_COURSES.find(c => c.id === courseId);
   const progress = (totalDue > 0 ? (totalPaid / totalDue) : 0) * 100;
   const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -70,3 +68,5 @@ export function PaymentStatusCard() {
     </Card>
   );
 }
+
+    

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { MOCK_COURSES, MOCK_DOCUMENTS, MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Loader2, PlusCircle } from "lucide-react";
+import { Download, FileText, Loader2, PlusCircle, User } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
@@ -26,11 +26,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 
 // In a real app, this would come from an auth context
-const user = MOCK_USERS.teacher;
-const userRole = user.role;
-const managedCourses = MOCK_COURSES.filter(course => course.teacherIds?.includes(user.id));
-const student = MOCK_USERS.student;
-const enrolledCourses = MOCK_COURSES.filter(course => student.enrolledCourseIds?.includes(course.id));
+const user = MOCK_USERS.student;
+const allUsers = Object.values(MOCK_USERS);
+const managedCourses = user.role === 'teacher' ? MOCK_COURSES.filter(course => course.teacherIds?.includes(user.id)) : [];
+const enrolledCourses = user.role === 'student' ? MOCK_COURSES.filter(course => user.enrolledCourseIds?.includes(course.id)) : [];
 
 
 const formSchema = z.object({
@@ -50,7 +49,7 @@ export default function DocumentsPage() {
         resolver: zodResolver(formSchema),
     });
 
-    const documentsByCourse = (userRole === 'student' ? enrolledCourses : managedCourses).map(course => ({
+    const documentsByCourse = (user.role === 'student' ? enrolledCourses : managedCourses).map(course => ({
         ...course,
         documents: documents.filter(doc => doc.courseId === course.id)
     }));
@@ -64,6 +63,7 @@ export default function DocumentsPage() {
                     ...values,
                     type: values.type as "Syllabus" | "Material" | "Assignment" | "Evaluation",
                     uploadedAt: new Date().toISOString(),
+                    uploaderId: user.id
                 }
                 setDocuments(prev => [newDocument, ...prev]);
                 toast({
@@ -86,10 +86,10 @@ export default function DocumentsPage() {
             Course Documents
             </h2>
             <p className="text-muted-foreground">
-                {userRole === 'student' ? 'Access your syllabus, materials, and assignments here.' : 'Manage and upload documents for your courses.'}
+                {user.role === 'student' ? 'Access your syllabus, materials, and assignments here.' : 'Manage and upload documents for your courses.'}
             </p>
         </div>
-         {userRole === 'teacher' && (
+         {user.role === 'teacher' && (
             <Button onClick={() => setIsFormDialogOpen(true)}>
                 <PlusCircle className="mr-2 h-4 w-4"/>
                 Upload Document
@@ -186,25 +186,35 @@ export default function DocumentsPage() {
                                 <TableRow>
                                 <TableHead>Title</TableHead>
                                 <TableHead>Type</TableHead>
-                                <TableHead>Uploaded</TableHead>
+                                <TableHead>Uploaded By</TableHead>
+                                <TableHead>Date</TableHead>
                                 <TableHead className="text-right">Action</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {course.documents.map(doc => (
-                                    <TableRow key={doc.id}>
-                                        <TableCell className="font-medium">{doc.title}</TableCell>
-                                        <TableCell>{doc.type}</TableCell>
-                                        <TableCell>{format(new Date(doc.uploadedAt), 'MMM d, yyyy')}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" asChild>
-                                                <a href={doc.fileUrl} download>
-                                                    <Download className="h-4 w-4"/>
-                                                </a>
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {course.documents.map(doc => {
+                                    const uploader = allUsers.find(u => u.id === doc.uploaderId);
+                                    return (
+                                        <TableRow key={doc.id}>
+                                            <TableCell className="font-medium">{doc.title}</TableCell>
+                                            <TableCell>{doc.type}</TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <User className="h-4 w-4 text-muted-foreground"/>
+                                                    <span>{uploader?.name || 'Unknown'}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{format(new Date(doc.uploadedAt), 'MMM d, yyyy')}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon" asChild>
+                                                    <a href={doc.fileUrl} download>
+                                                        <Download className="h-4 w-4"/>
+                                                    </a>
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
                             </TableBody>
                         </Table>
                         </div>

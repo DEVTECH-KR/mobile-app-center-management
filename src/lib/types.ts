@@ -1,3 +1,4 @@
+
 export type UserRole = "student" | "teacher" | "admin";
 
 export type User = {
@@ -77,6 +78,7 @@ export type Document = {
   fileUrl: string;
   type: "Syllabus" | "Material" | "Assignment" | "Evaluation";
   uploadedAt: string;
+  uploaderId: string;
 };
 
 export type Partner = {
@@ -89,3 +91,5 @@ export type CenterInfo = {
     schedule: string;
     registrationFee: number;
 }
+
+    

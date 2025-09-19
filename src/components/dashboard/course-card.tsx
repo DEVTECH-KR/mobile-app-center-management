@@ -1,11 +1,12 @@
+
 import Image from "next/image";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Course, UserRole } from "@/lib/types";
-import { BookOpen, Clock, Eye } from "lucide-react";
+import { BookOpen, CheckCircle, Clock, Eye } from "lucide-react";
 import Link from "next/link";
 
-export function CourseCard({ course, userRole }: { course: Course, userRole?: UserRole }) {
+export function CourseCard({ course, userRole, isEnrolled }: { course: Course, userRole?: UserRole, isEnrolled?: boolean }) {
   const currencyFormatter = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "FBU",
@@ -50,6 +51,11 @@ export function CourseCard({ course, userRole }: { course: Course, userRole?: Us
               View Details
             </Link>
           </Button>
+        ) : isEnrolled ? (
+            <Button className="w-full" disabled variant="secondary">
+                <CheckCircle className="mr-2"/>
+                Enrolled
+            </Button>
         ) : (
           <Button className="w-full">
               <BookOpen className="mr-2"/>
@@ -60,3 +66,5 @@ export function CourseCard({ course, userRole }: { course: Course, userRole?: Us
     </Card>
   );
 }
+
+    

@@ -29,7 +29,7 @@ import Image from "next/image";
 
 
 // In a real app, this would come from an auth context
-const userRole = MOCK_USERS.admin.role;
+const userRole = MOCK_USERS.student.role;
 
 const formSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -59,13 +59,24 @@ export default function EventsPage() {
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || []);
-        
-        // In a real app, you'd upload files and get back URLs.
-        // For this prototype, we'll just use the blob URLs as placeholders.
-        const newPreviews = files.map(file => URL.createObjectURL(file));
-        const allPreviews = [...imagePreviews, ...newPreviews];
-        setImagePreviews(allPreviews);
-        form.setValue('imageUrls', allPreviews, { shouldValidate: true });
+        if (files.length === 0) return;
+
+        const currentPreviews = [...form.getValues('imageUrls')];
+
+        const newFilePromises = files.map(file => {
+            return new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        });
+
+        Promise.all(newFilePromises).then(newPreviews => {
+            const allPreviews = [...currentPreviews, ...newPreviews];
+            setImagePreviews(allPreviews);
+            form.setValue('imageUrls', allPreviews, { shouldValidate: true });
+        });
     };
 
     const removeImage = (index: number) => {
@@ -105,12 +116,13 @@ export default function EventsPage() {
          form.handleSubmit(() => {
             // Simulate API call
             setTimeout(() => {
+                 const isDateInPast = isBefore(values.date, startOfToday());
                 if (editingEvent) {
                     const updatedEvent: Event = {
                         ...editingEvent,
                         ...values,
                         date: format(values.date, 'yyyy-MM-dd'),
-                        isPast: values.isPast || isBefore(values.date, startOfToday()),
+                        isPast: values.isPast || isDateInPast,
                     };
                     setEvents(prev => prev.map(e => e.id === editingEvent.id ? updatedEvent : e));
                     toast({
@@ -122,9 +134,9 @@ export default function EventsPage() {
                         id: `event-${Date.now()}`,
                         ...values,
                         date: format(values.date, 'yyyy-MM-dd'),
-                        isPast: values.isPast || isBefore(values.date, startOfToday()),
+                        isPast: values.isPast || isDateInPast,
                     }
-                    setEvents(prev => [newEvent, ...prev]);
+                    setEvents(prev => [newEvent, ...prev].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
                     toast({
                         title: "Event Created",
                         description: `The event "${newEvent.title}" has been successfully created.`,

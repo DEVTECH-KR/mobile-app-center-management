@@ -1,3 +1,4 @@
+
 import { User, Course, PaymentDetails, Event, Document, UserRole, Partner, Class } from './types';
 
 export const MOCK_USERS: { [key: string]: User } = {
@@ -37,7 +38,7 @@ export const MOCK_USERS: { [key: string]: User } = {
     email: 'e.reed@ffbf.com',
     role: 'teacher',
     avatarUrl: 'https://picsum.photos/seed/201/200/200',
-    enrolledCourseIds: ['course-2'],
+    enrolledCourseIds: [],
     classIds: ['class-2'],
     gender: 'female',
     nationality: 'Other',
@@ -53,7 +54,7 @@ export const MOCK_USERS: { [key: string]: User } = {
     email: 'm.chen@ffbf.com',
     role: 'teacher',
     avatarUrl: 'https://picsum.photos/seed/202/200/200',
-    enrolledCourseIds: ['course-1'],
+    enrolledCourseIds: [],
     classIds: ['class-1'],
     gender: 'male',
     nationality: 'Other',
@@ -178,11 +179,11 @@ export const MOCK_EVENTS: Event[] = [
 ];
 
 export const MOCK_DOCUMENTS: Document[] = [
-    { id: 'doc-1', courseId: 'course-1', title: 'Course Syllabus', type: 'Syllabus', fileUrl: '#', uploadedAt: '2024-01-10' },
-    { id: 'doc-2', courseId: 'course-1', title: 'Excel Basics', type: 'Material', fileUrl: '#', uploadedAt: '2024-01-20' },
-    { id: 'doc-3', courseId: 'course-2', title: 'Intro to JavaScript', type: 'Material', fileUrl: '#', uploadedAt: '2024-02-01' },
-    { id: 'doc-4', courseId: 'course-2', title: 'React Hooks Guide', type: 'Material', fileUrl: '#', uploadedAt: '2024-03-05' },
-     { id: 'doc-5', courseId: 'course-1', title: 'Advanced Formulas Assignment', type: 'Assignment', fileUrl: '#', uploadedAt: '2024-03-10' },
+    { id: 'doc-1', courseId: 'course-1', title: 'Course Syllabus', type: 'Syllabus', fileUrl: '#', uploadedAt: '2024-01-10', uploaderId: 'user-teacher2' },
+    { id: 'doc-2', courseId: 'course-1', title: 'Excel Basics', type: 'Material', fileUrl: '#', uploadedAt: '2024-01-20', uploaderId: 'user-teacher2' },
+    { id: 'doc-3', courseId: 'course-2', title: 'Intro to JavaScript', type: 'Material', fileUrl: '#', uploadedAt: '2024-02-01', uploaderId: 'user-teacher' },
+    { id: 'doc-4', courseId: 'course-2', title: 'React Hooks Guide', type: 'Material', fileUrl: '#', uploadedAt: '2024-03-05', uploaderId: 'user-teacher' },
+    { id: 'doc-5', courseId: 'course-1', title: 'Advanced Formulas Assignment', type: 'Assignment', fileUrl: '#', uploadedAt: '2024-03-10', uploaderId: 'user-teacher2' },
 ];
 
 export const MOCK_CENTER_INFO = {
@@ -197,3 +198,5 @@ export const MOCK_PARTNERS: Partner[] = [
   { name: 'Coursera', logoUrl: 'https://picsum.photos/seed/p3/100/100' },
   { name: 'Local Chamber of Commerce', logoUrl: 'https://picsum.photos/seed/p4/100/100' }
 ]
+
+    
