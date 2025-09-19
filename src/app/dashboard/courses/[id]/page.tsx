@@ -161,15 +161,15 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Request Submitted Successfully!</AlertDialogTitle>
-                        <AlertDialogDescription className="space-y-4 pt-4 text-foreground">
-                            <p>You have reserved a spot for the training in <span className="font-semibold">{course.title}</span>.</p>
-                            <p>Please visit the center within 48 hours to pay the registration fee of <span className="font-semibold">{new Intl.NumberFormat("en-US", { style: "currency", currency: "FBU", minimumFractionDigits: 0 }).format(MOCK_CENTER_INFO.registrationFee)}</span> so that your spot can be definitively reserved.</p>
-                            <div className="text-sm text-muted-foreground border-l-4 pl-4">
+                        <div className="text-sm text-muted-foreground pt-4 space-y-4">
+                            <p className="text-foreground">You have reserved a spot for the training in <span className="font-semibold">{course.title}</span>.</p>
+                            <p className="text-foreground">Please visit the center within 48 hours to pay the registration fee of <span className="font-semibold">{new Intl.NumberFormat("en-US", { style: "currency", currency: "FBU", minimumFractionDigits: 0 }).format(MOCK_CENTER_INFO.registrationFee)}</span> so that your spot can be definitively reserved.</p>
+                            <div className="border-l-4 pl-4">
                                 <p><span className="font-semibold">Center Address:</span> {MOCK_CENTER_INFO.address}</p>
                                 <p><span className="font-semibold">Contact:</span> {MOCK_CENTER_INFO.contact}</p>
                             </div>
-                            <p>Once the payment has been made, you will have full access to our app: track your payments, download syllabi, access events, and more.</p>
-                        </AlertDialogDescription>
+                            <p className="text-foreground">Once the payment has been made, you will have full access to our app: track your payments, download syllabi, access events, and more.</p>
+                        </div>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                          <Button asChild className="w-full">
