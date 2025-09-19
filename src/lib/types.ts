@@ -76,7 +76,7 @@ export type Event = {
   title: string;
   description: string;
   details?: string;
-  date: Timestamp | string; // Use Timestamp for Firestore
+  date: Timestamp | Date | string; // Use Timestamp for Firestore
   isPast: boolean;
   imageUrls: string[];
   imageHint: string;
@@ -111,9 +111,11 @@ export type EnrollmentRequest = {
     id?: string; // Firestore will generate this
     userId: string;
     courseId: string;
-    requestDate: Timestamp | string; // Use Timestamp for Firestore
+    requestDate: Timestamp | Date; // Use Timestamp for Firestore
     status: EnrollmentStatus;
     userName: string; // Denormalized for easy display
     userEmail: string; // Denormalized for easy display
     courseTitle: string; // Denormalized for easy display
 }
+
+    

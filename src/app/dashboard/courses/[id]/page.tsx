@@ -1,7 +1,7 @@
 
 'use client';
 import { Button } from "@/components/ui/button";
-import { MOCK_CENTER_INFO, MOCK_ENROLLMENT_REQUESTS, MOCK_COURSES as MOCK_COURSES_STATIC } from "@/lib/mock-data";
+import { MOCK_CENTER_INFO, MOCK_ENROLLMENT_REQUESTS } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, BookOpen, Clock, Tag, User, Star, Loader2 } from "lucide-react";
@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { EnrollmentRequest, Course, User as UserType } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, where, query, addDoc } from "firebase/firestore";
 
 export default function CourseDetailsPage({ params }: { params: { id: string } }) {
   const { userProfile, loading } = useAuth();
@@ -25,36 +25,55 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRequestSubmitted, setIsRequestSubmitted] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (!params.id) return;
-    const fetchCourse = async () => {
+    const fetchCourseAndRequests = async () => {
         setPageLoading(true);
         try {
+            // Fetch course
             const courseDoc = await getDoc(doc(db, "courses", params.id));
             if (courseDoc.exists()) {
                 const courseData = { id: courseDoc.id, ...courseDoc.data() } as Course;
                 setCourse(courseData);
 
+                // Fetch teachers for the course
                 if (courseData.teacherIds && courseData.teacherIds.length > 0) {
-                     const usersCollection = collection(db, "users");
-                     const usersSnapshot = await getDocs(usersCollection);
+                     const usersQuery = query(collection(db, "users"), where("role", "==", "teacher"), where("id", "in", courseData.teacherIds));
+                     const usersSnapshot = await getDocs(usersQuery);
                      const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserType));
-                     setTeachers(usersList.filter(u => u.role === 'teacher' && courseData.teacherIds.includes(u.id)));
+                     setTeachers(usersList);
                 }
-
             } else {
                 setCourse(null);
             }
+
+            // Check for existing enrollment requests for the current user and course
+            if (userProfile) {
+                const requestsQuery = query(
+                    collection(db, "enrollmentRequests"), 
+                    where("userId", "==", userProfile.id), 
+                    where("courseId", "==", params.id),
+                    where("status", "==", "pending")
+                );
+                const requestSnapshot = await getDocs(requestsQuery);
+                setHasPendingRequest(!requestSnapshot.empty);
+            }
+
         } catch (error) {
-            console.error("Error fetching course:", error);
+            console.error("Error fetching course data:", error);
+            toast({ title: "Error", description: "Could not load course details.", variant: "destructive"});
         } finally {
             setPageLoading(false);
         }
     };
-    fetchCourse();
-  }, [params.id]);
+    
+    if(!loading) {
+      fetchCourseAndRequests();
+    }
+  }, [params.id, userProfile, loading, toast]);
   
   if (pageLoading || loading) {
     return (
@@ -69,26 +88,24 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
   }
 
   const isEnrolled = userProfile?.enrolledCourseIds?.includes(course.id!);
-  const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === userProfile?.id && req.courseId === course.id && req.status === 'pending');
-  const canEnroll = !isEnrolled && !hasPendingRequest && !isRequestSubmitted;
+  const canEnroll = userProfile?.role === 'student' && !isEnrolled && !hasPendingRequest && !isRequestSubmitted;
 
 
-  const handleEnrollmentRequest = () => {
-    if (!userProfile) return;
+  const handleEnrollmentRequest = async () => {
+    if (!userProfile || !course) return;
     setIsSubmitting(true);
-    // Simulate an API call
-    setTimeout(() => {
-      const newRequest: EnrollmentRequest = {
-        id: `req-${Date.now()}`,
+    try {
+      const newRequest: Omit<EnrollmentRequest, 'id'> = {
         userId: userProfile.id,
         courseId: course.id!,
-        requestDate: new Date().toISOString(),
+        requestDate: new Date(),
         status: 'pending',
         userName: userProfile.name,
         userEmail: userProfile.email,
         courseTitle: course.title,
       };
-      MOCK_ENROLLMENT_REQUESTS.push(newRequest);
+      
+      await addDoc(collection(db, "enrollmentRequests"), newRequest);
 
       setIsSubmitting(false);
       setShowConfirmDialog(false);
@@ -97,7 +114,12 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
           title: "Enrollment Request Submitted!",
           description: `Your request for ${course.title} has been received.`,
         });
-    }, 1000);
+    } catch (error) {
+        console.error("Error submitting enrollment request: ", error);
+        toast({ title: "Error", description: "Could not submit your request.", variant: "destructive" });
+        setIsSubmitting(false);
+        setShowConfirmDialog(false);
+    }
   }
 
   const schedule = `${course.days.join(', ')} | ${course.startTime} - ${course.endTime}`;
@@ -196,18 +218,18 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
             </AlertDialogContent>
           </AlertDialog>
           
-          <AlertDialog open={isRequestSubmitted && !showConfirmDialog}>
+           <AlertDialog open={isRequestSubmitted && !showConfirmDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Request Submitted Successfully!</AlertDialogTitle>
-                        <div className="text-sm text-muted-foreground pt-4 space-y-4">
-                            <p className="text-foreground">You have reserved a spot for the training in <span className="font-semibold">{course.title}</span>.</p>
-                            <p className="text-foreground">Please visit the center within 48 hours to pay the registration fee of <span className="font-semibold">{new Intl.NumberFormat("en-US", { style: "currency", currency: "FBU", minimumFractionDigits: 0 }).format(MOCK_CENTER_INFO.registrationFee)}</span> so that your spot can be definitively reserved.</p>
+                         <div className="text-sm text-muted-foreground pt-4 space-y-4">
+                            <p>You have reserved a spot for the training in <span className="font-semibold">{course.title}</span>.</p>
+                            <p>Please visit the center within 48 hours to pay the registration fee of <span className="font-semibold">{new Intl.NumberFormat("en-US", { style: "currency", currency: "FBU", minimumFractionDigits: 0 }).format(MOCK_CENTER_INFO.registrationFee)}</span> so that your spot can be definitively reserved.</p>
                             <div className="border-l-4 pl-4">
                                 <p><span className="font-semibold">Center Address:</span> {MOCK_CENTER_INFO.address}</p>
                                 <p><span className="font-semibold">Contact:</span> {MOCK_CENTER_INFO.contact}</p>
                             </div>
-                            <p className="text-foreground">Once the payment has been made, you will have full access to our app: track your payments, download syllabi, access events, and more.</p>
+                            <p>Once the payment has been made, you will have full access to our app: track your payments, download syllabi, access events, and more.</p>
                         </div>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -220,3 +242,5 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
       </div>
   );
 }
+
+    
