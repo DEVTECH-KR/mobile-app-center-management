@@ -3,8 +3,8 @@ import { PaymentStatusCard } from "@/components/dashboard/payment-status";
 import { MOCK_USERS } from "@/lib/mock-data";
 
 // In a real app, this would come from an auth context
-const userRole = MOCK_USERS.student.role;
-// const userRole = MOCK_USERS.admin.role;
+// const userRole = MOCK_USERS.student.role;
+const userRole = MOCK_USERS.admin.role;
 
 export default function PaymentsPage() {
   return (

@@ -2,7 +2,7 @@
 "use client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { MOCK_PAYMENTS } from "@/lib/mock-data";
+import { MOCK_COURSES, MOCK_PAYMENTS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import type { PaymentStatus } from "@/lib/types";
@@ -16,7 +16,8 @@ export const statusColors: Record<PaymentStatus, string> = {
 export function PaymentStatusCard() {
   // In a real app, this data would be fetched for the logged-in user.
   // We're just using the mock data for now.
-  const { totalPaid, totalDue, installments } = MOCK_PAYMENTS;
+  const { totalPaid, totalDue, installments, courseId } = MOCK_PAYMENTS;
+  const course = MOCK_COURSES.find(c => c.id === courseId);
   const progress = (totalDue > 0 ? (totalPaid / totalDue) : 0) * 100;
   const currencyFormatter = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -29,7 +30,7 @@ export function PaymentStatusCard() {
       <CardHeader>
         <CardTitle>Payment Status</CardTitle>
         <CardDescription>
-          Your tuition payment progress for Office (Bureautics).
+          Your tuition payment progress for {course?.title}.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -69,4 +70,3 @@ export function PaymentStatusCard() {
     </Card>
   );
 }
-

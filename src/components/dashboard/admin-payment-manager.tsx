@@ -35,13 +35,34 @@ type StudentPayment = User & { paymentDetails: PaymentDetails | null };
 
 const allStudents = Object.values(MOCK_USERS).filter(u => u.role === 'student');
 
-const initialStudentPayments: StudentPayment[] = allStudents.map(student => {
-    // In a real app, you'd fetch this from a DB
-    const paymentDetails = student.id === 'user-1' ? MOCK_PAYMENTS : null;
-    if (student.id === 'user-2' && paymentDetails) { // Create some variation for demo
-         paymentDetails.totalPaid = 20000 + 12500;
-         paymentDetails.installments = paymentDetails.installments.map((p, i) => i < 2 ? {...p, status: 'Paid'} : {...p, status: 'Unpaid'});
+const getInitialStudentPayments = (): StudentPayment[] => allStudents.map(student => {
+    let paymentDetails: PaymentDetails | null = null;
+    
+    // In a real app, you'd fetch this from a DB.
+    // Here we assign payment details to student 'user-1' and a modified version to 'user-2'
+    if (student.id === 'user-1') {
+        paymentDetails = JSON.parse(JSON.stringify(MOCK_PAYMENTS));
+    } else if (student.id === 'user-2') {
+         const courseForUser2 = MOCK_COURSES.find(c => student.enrolledCourseIds?.includes(c.id));
+         if(courseForUser2) {
+             const installmentAmount = courseForUser2.price / 4;
+             paymentDetails = {
+                 userId: 'user-2',
+                 courseId: courseForUser2.id,
+                 registrationFee: 20000,
+                 totalDue: 20000 + courseForUser2.price,
+                 totalPaid: 20000 + installmentAmount,
+                 installments: [
+                    { name: 'Registration Fee', amount: 20000, status: 'Paid', dueDate: '2024-02-01' },
+                    { name: 'Installment 1', amount: installmentAmount, status: 'Paid', dueDate: '2024-02-01' },
+                    { name: 'Installment 2', amount: installmentAmount, status: 'Unpaid', dueDate: '2024-03-01' },
+                    { name: 'Installment 3', amount: installmentAmount, status: 'Unpaid', dueDate: '2024-04-01' },
+                    { name: 'Installment 4', amount: installmentAmount, status: 'Unpaid', dueDate: '2024-05-01' },
+                 ]
+             };
+         }
     }
+    
     return {
         ...student,
         paymentDetails
@@ -50,7 +71,7 @@ const initialStudentPayments: StudentPayment[] = allStudents.map(student => {
 
 
 export function AdminPaymentManager() {
-    const [studentPayments, setStudentPayments] = useState<StudentPayment[]>(initialStudentPayments);
+    const [studentPayments, setStudentPayments] = useState<StudentPayment[]>(getInitialStudentPayments());
     const [selectedStudent, setSelectedStudent] = useState<StudentPayment | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,6 +110,8 @@ export function AdminPaymentManager() {
                 totalPaid: newTotalPaid,
             };
 
+            // This is where you would persist the changes to your backend
+            // For now, we update the local state
             setStudentPayments(prev => prev.map(sp =>
                 sp.id === selectedStudent.id
                     ? { ...sp, paymentDetails: updatedPaymentDetails }
@@ -133,6 +156,8 @@ export function AdminPaymentManager() {
           </TableHeader>
           <TableBody>
             {studentPayments.map((student) => {
+              const course = MOCK_COURSES.find(c => student.paymentDetails?.courseId === c.id);
+
               if (!student.paymentDetails) {
                  return (
                     <TableRow key={student.id}>
@@ -142,15 +167,15 @@ export function AdminPaymentManager() {
                             {student.email}
                             </div>
                         </TableCell>
-                        <TableCell colSpan={4} className="text-muted-foreground">No payment records found.</TableCell>
+                         <TableCell>{MOCK_COURSES.find(c => student.enrolledCourseIds?.includes(c.id))?.title || 'N/A'}</TableCell>
+                        <TableCell colSpan={3} className="text-muted-foreground text-center">No payment records found.</TableCell>
                     </TableRow>
                  )
               }
               const { totalPaid, totalDue } = student.paymentDetails;
-              const progress = (totalPaid / totalDue) * 100;
+              const progress = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
               const isFullyPaid = progress >= 100;
-              const course = MOCK_COURSES.find(c => c.id === student.paymentDetails!.courseId);
-
+              
               return (
                 <TableRow key={student.id}>
                   <TableCell>
@@ -188,7 +213,7 @@ export function AdminPaymentManager() {
           <DialogHeader>
             <DialogTitle>Update Payment Record for {selectedStudent?.name}</DialogTitle>
             <DialogDescription>
-              Mark installments as paid and upload proof of payment. The student will be notified.
+              Mark installments as paid. The student's payment status will be updated accordingly.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -214,7 +239,7 @@ export function AdminPaymentManager() {
             ))}
             </div>
              <div className="grid w-full max-w-sm items-center gap-1.5 mt-4">
-                <Label htmlFor="payment-proof">Payment Proof (Receipt)</Label>
+                <Label htmlFor="payment-proof">Payment Proof (Optional)</Label>
                 <div className="flex items-center gap-2">
                     <Input id="payment-proof" type="file" className="flex-1"/>
                     <Button size="icon" variant="outline"><FileUp className="h-4 w-4"/></Button>
@@ -233,4 +258,3 @@ export function AdminPaymentManager() {
     </>
   );
 }
-
