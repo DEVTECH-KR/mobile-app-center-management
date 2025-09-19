@@ -62,6 +62,8 @@ export default function ClassesPage() {
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: "",
+            courseId: "",
+            level: "",
         },
     });
 
@@ -69,24 +71,26 @@ export default function ClassesPage() {
     const selectedCourse = allCourses.find(c => c.id === selectedCourseId);
 
     function onSubmit(values: z.infer<typeof formSchema>) {
-        // Simulate API call
-        setTimeout(() => {
-            const newClass: Class = {
-                id: `class-${Date.now()}`,
-                courseId: values.courseId,
-                name: values.name,
-                level: values.level || 'N/A',
-                teacherId: null,
-                studentIds: [],
-            }
-            setClasses(prev => [newClass, ...prev]);
-            toast({
-                title: "Class Created",
-                description: `The class "${newClass.name}" has been successfully created.`,
-            });
-            setIsCreateDialogOpen(false);
-            form.reset();
-        }, 500);
+        form.handleSubmit(() => {
+            // Simulate API call
+            setTimeout(() => {
+                const newClass: Class = {
+                    id: `class-${Date.now()}`,
+                    courseId: values.courseId,
+                    name: values.name,
+                    level: values.level || 'N/A',
+                    teacherId: null,
+                    studentIds: [],
+                }
+                setClasses(prev => [newClass, ...prev]);
+                toast({
+                    title: "Class Created",
+                    description: `The class "${newClass.name}" has been successfully created.`,
+                });
+                setIsCreateDialogOpen(false);
+                form.reset();
+            }, 500);
+        })()
     }
 
     if (currentUser.role !== 'admin') {
