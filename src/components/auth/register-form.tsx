@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +20,9 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { auth, db } from "@/lib/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -61,17 +65,51 @@ export function RegisterForm() {
 
   const nationality = form.watch("nationality");
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    // Simulate API call for registration
-    console.log(values);
-    setTimeout(() => {
-        toast({
-          title: "Registration Successful",
-          description: "Welcome! Please log in to continue.",
-        });
-        router.push("/login");
-    }, 1000);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // Now, save the rest of the user's data to Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        name: values.name,
+        email: values.email,
+        role: 'student', // Default role
+        gender: values.gender,
+        nationality: values.nationality,
+        otherNationality: values.otherNationality,
+        educationLevel: values.educationLevel,
+        university: values.university,
+        address: values.address,
+        phone: values.phone,
+        enrolledCourseIds: [],
+        enrollmentRequestIds: [],
+        classIds: [],
+        avatarUrl: `https://picsum.photos/seed/${user.uid}/100/100`, // Default avatar
+      });
+
+      toast({
+        title: "Registration Successful",
+        description: "Welcome! Please log in to continue.",
+      });
+      router.push("/login");
+
+    } catch (error: any) {
+      console.error("Registration Error:", error);
+      let description = "An unexpected error occurred. Please try again.";
+      if (error.code === 'auth/email-already-in-use') {
+        description = "This email address is already in use. Please try another one.";
+      }
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: description,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -273,3 +311,5 @@ export function RegisterForm() {
     </Form>
   );
 }
+
+    

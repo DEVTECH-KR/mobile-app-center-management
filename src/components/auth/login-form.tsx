@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -38,25 +41,30 @@ export function LoginForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      if (values.email === "student@ffbf.com" || values.email === "admin@ffbf.com") {
-        toast({
-          title: "Login Successful",
-          description: "Welcome back!",
-        });
-        router.push("/dashboard");
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: "Invalid email or password.",
-        });
-        setIsLoading(false);
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      });
+      router.push("/dashboard");
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      let description = "An unexpected error occurred. Please try again.";
+      // Firebase error codes for auth
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        description = "Invalid email or password. Please try again.";
       }
-    }, 1000);
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: description,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -96,3 +104,5 @@ export function LoginForm() {
     </Form>
   );
 }
+
+    
