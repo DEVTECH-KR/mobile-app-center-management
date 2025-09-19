@@ -30,7 +30,7 @@ export default function Home() {
               maskImage: 'radial-gradient(ellipse at center, white, transparent 75%)',
             }}
           />
-          <div className="container relative z-10 flex h-full flex-col items-center justify-center text-center">
+          <div className="container relative z-10 flex h-full flex-col items-center justify-center px-4 text-center">
             <h1 className="font-headline text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
               Fighting For a Better Future
             </h1>
@@ -38,7 +38,7 @@ export default function Home() {
               Your journey to excellence starts here. Empowering students with
               the skills needed for tomorrow's challenges.
             </p>
-            <div className="mt-10 flex gap-4">
+            <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <Button size="lg" asChild>
                 <Link href="/login">Get Started</Link>
               </Button>
