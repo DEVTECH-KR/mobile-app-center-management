@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MOCK_CLASSES, MOCK_COURSES, MOCK_USERS } from "@/lib/mock-data";
 import { Input } from "@/components/ui/input";
-import { BookMarked, Loader2, MoreVertical, PlusCircle, Search, Users } from "lucide-react";
+import { Loader2, MoreVertical, PlusCircle, Trash2, Users, Edit } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,15 +30,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
-import type { Course, Class } from "@/lib/types";
+import type { Course, Class, User } from "@/lib/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 const formSchema = z.object({
@@ -51,43 +52,81 @@ const formSchema = z.object({
 // In a real app, this would come from an auth context
 const currentUser = MOCK_USERS.admin;
 const allCourses = MOCK_COURSES;
-const allTeachers = Object.values(MOCK_USERS).filter(u => u.role === 'teacher');
+const allUsers = Object.values(MOCK_USERS);
 
 export default function ClassesPage() {
-    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+    const [editingClass, setEditingClass] = useState<Class | null>(null);
+    const [viewingClass, setViewingClass] = useState<Class | null>(null);
     const [classes, setClasses] = useState<Class[]>(MOCK_CLASSES);
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: {
-            name: "",
-            courseId: "",
-            level: "",
-        },
     });
 
     const selectedCourseId = form.watch("courseId");
     const selectedCourse = allCourses.find(c => c.id === selectedCourseId);
 
+    const handleOpenCreateDialog = () => {
+        setEditingClass(null);
+        form.reset({ name: "", courseId: "", level: "" });
+        setIsFormDialogOpen(true);
+    };
+
+    const handleOpenEditDialog = (cls: Class) => {
+        setEditingClass(cls);
+        form.reset({
+            name: cls.name,
+            courseId: cls.courseId,
+            level: cls.level,
+        });
+        setIsFormDialogOpen(true);
+    };
+
+    const handleOpenViewStudentsDialog = (cls: Class) => {
+        setViewingClass(cls);
+    };
+
+    const handleDeleteClass = (classId: string) => {
+        setClasses(prev => prev.filter(c => c.id !== classId));
+        toast({
+            title: "Class Deleted",
+            description: "The class has been successfully deleted.",
+            variant: "destructive"
+        });
+    }
+
     function onSubmit(values: z.infer<typeof formSchema>) {
         form.handleSubmit(() => {
             // Simulate API call
             setTimeout(() => {
-                const newClass: Class = {
-                    id: `class-${Date.now()}`,
-                    courseId: values.courseId,
-                    name: values.name,
-                    level: values.level || 'N/A',
-                    teacherId: null,
-                    studentIds: [],
+                if (editingClass) {
+                    // Update existing class
+                    const updatedClass = { ...editingClass, ...values };
+                    setClasses(prev => prev.map(c => c.id === editingClass.id ? updatedClass : c));
+                    toast({
+                        title: "Class Updated",
+                        description: `The class "${updatedClass.name}" has been updated.`,
+                    });
+                } else {
+                    // Create new class
+                    const newClass: Class = {
+                        id: `class-${Date.now()}`,
+                        courseId: values.courseId,
+                        name: values.name,
+                        level: values.level || 'N/A',
+                        teacherId: null,
+                        studentIds: [],
+                    }
+                    setClasses(prev => [newClass, ...prev]);
+                    toast({
+                        title: "Class Created",
+                        description: `The class "${newClass.name}" has been successfully created.`,
+                    });
                 }
-                setClasses(prev => [newClass, ...prev]);
-                toast({
-                    title: "Class Created",
-                    description: `The class "${newClass.name}" has been successfully created.`,
-                });
-                setIsCreateDialogOpen(false);
+                setIsFormDialogOpen(false);
+                setEditingClass(null);
                 form.reset();
             }, 500);
         })()
@@ -112,94 +151,93 @@ export default function ClassesPage() {
                 Create new classes, assign teachers, and view student enrollments.
             </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4"/>
-                    Create Class
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                        <DialogHeader>
-                        <DialogTitle>Create a new class</DialogTitle>
-                        <DialogDescription>
-                            Fill in the details below to create a new class.
-                        </DialogDescription>
-                        </DialogHeader>
+        <Button onClick={handleOpenCreateDialog}>
+            <PlusCircle className="mr-2 h-4 w-4"/>
+            Create Class
+        </Button>
+      </div>
+
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                    <DialogHeader>
+                    <DialogTitle>{editingClass ? 'Edit Class' : 'Create a new class'}</DialogTitle>
+                    <DialogDescription>
+                        {editingClass ? 'Update the details for this class.' : 'Fill in the details below to create a new class.'}
+                    </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid gap-4 py-4">
+                        <FormField
+                            control={form.control}
+                            name="courseId"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Course</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a course" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {allCourses.map(course => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
                         
-                        <div className="grid gap-4 py-4">
+                        {selectedCourse && selectedCourse.levels && (
                             <FormField
                                 control={form.control}
-                                name="courseId"
+                                name="level"
                                 render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Course</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormLabel>Level</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select a course" />
+                                            <SelectValue placeholder="Select a level" />
                                         </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                        {allCourses.map(course => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
+                                            {selectedCourse.levels.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
                                     </FormItem>
                                 )}
-                                />
-                            
-                            {selectedCourse && selectedCourse.levels && (
-                                <FormField
-                                    control={form.control}
-                                    name="level"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Level</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select a level" />
-                                            </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {selectedCourse.levels.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
-                            <FormField
-                                control={form.control}
-                                name="name"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Class Name</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="e.g. Room A" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
                             />
-                        </div>
+                        )}
+                        <FormField
+                            control={form.control}
+                            name="name"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Class Name</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g. Room A" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
 
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={form.formState.isSubmitting}>
-                                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Create Class
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-            </DialogContent>
-        </Dialog>
-      </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsFormDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={form.formState.isSubmitting}>
+                            {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {editingClass ? 'Save Changes' : 'Create Class'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
       
       <div className="rounded-lg border">
         <Table>
@@ -215,8 +253,8 @@ export default function ClassesPage() {
           <TableBody>
             {classes.map((cls) => {
               const course = MOCK_COURSES.find(c => c.id === cls.courseId);
-              const teacher = Object.values(MOCK_USERS).find(u => u.id === cls.teacherId) || null;
-              const students = cls.studentIds.map(id => Object.values(MOCK_USERS).find(u => u.id === id));
+              const teacher = allUsers.find(u => u.id === cls.teacherId) || null;
+              
               return(
               <TableRow key={cls.id}>
                 <TableCell>
@@ -246,10 +284,35 @@ export default function ClassesPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit Class</DropdownMenuItem>
-                        <DropdownMenuItem>View Students</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenEditDialog(cls)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Class
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenViewStudentsDialog(cls)} disabled={cls.studentIds.length === 0}>
+                            <Users className="mr-2 h-4 w-4" />
+                            View Students
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">Delete Class</DropdownMenuItem>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Class
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the class <span className="font-semibold">"{cls.name}"</span>.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteClass(cls.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -258,6 +321,42 @@ export default function ClassesPage() {
           </TableBody>
         </Table>
       </div>
+
+       <Dialog open={!!viewingClass} onOpenChange={(open) => !open && setViewingClass(null)}>
+        <DialogContent className="max-w-md">
+            <DialogHeader>
+                <DialogTitle>Students in {viewingClass?.name}</DialogTitle>
+                <DialogDescription>
+                    {MOCK_COURSES.find(c => c.id === viewingClass?.courseId)?.title} - {viewingClass?.level}
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                {viewingClass && viewingClass.studentIds.length > 0 ? (
+                    viewingClass.studentIds.map(id => {
+                        const student = allUsers.find(u => u.id === id);
+                        return student ? (
+                            <div key={student.id} className="flex items-center gap-3">
+                                <Avatar>
+                                    <AvatarImage src={student.avatarUrl} alt={student.name} />
+                                    <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-medium">{student.name}</p>
+                                    <p className="text-sm text-muted-foreground">{student.email}</p>
+                                </div>
+                            </div>
+                        ) : null;
+                    })
+                ) : (
+                    <p className="text-sm text-muted-foreground">No students are enrolled in this class yet.</p>
+                )}
+            </div>
+             <DialogFooter>
+                <Button variant="outline" onClick={() => setViewingClass(null)}>Close</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+
+    
