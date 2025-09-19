@@ -1,26 +1,12 @@
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { BookOpenCheck } from 'lucide-react';
 import Logo from '@/components/icons/logo';
+import { AppHeader } from '@/components/layout/app-header';
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="container z-40 bg-background">
-        <div className="flex h-20 items-center justify-between py-6">
-          <div className="flex items-center gap-2">
-            <Logo className="h-8 w-8 text-primary" />
-            <span className="font-bold font-headline text-lg">
-              FFBF Training Hub
-            </span>
-          </div>
-          <nav>
-            <Button asChild>
-              <Link href="/login">Login</Link>
-            </Button>
-          </nav>
-        </div>
-      </header>
+      <AppHeader />
       <main className="flex-1">
         <section className="relative h-[calc(100vh-5rem)]">
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
@@ -43,7 +29,7 @@ export default function Home() {
                 <Link href="/login">Get Started</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/dashboard/courses">Explore Courses</Link>
+                <Link href="/courses">Explore Courses</Link>
               </Button>
             </div>
           </div>

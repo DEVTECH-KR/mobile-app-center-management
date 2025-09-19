@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { AppHeader } from '@/components/layout/app-header';
 
 export const metadata: Metadata = {
   title: 'FFBF Training Hub',
