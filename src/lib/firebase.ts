@@ -17,14 +17,8 @@ const firebaseConfig = {
 };
 
 
-// Initialize Firebase for SSR
-let app: FirebaseApp;
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
-}
-
+// Initialize Firebase
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
