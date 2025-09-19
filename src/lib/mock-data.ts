@@ -74,7 +74,7 @@ export const MOCK_COURSES: Course[] = [
     title: 'English & French',
     description: 'Improve your language proficiency with our comprehensive English and French courses.',
     price: 40000,
-    teacherIds: ['teacher-3'],
+    teacherIds: ['user-teacher3'],
     schedule: 'Sat | 10:00 AM - 1:00 PM',
     imageUrl: 'https://picsum.photos/seed/3/600/400',
     imageHint: 'books library',
@@ -159,3 +159,5 @@ export const MOCK_PARTNERS: Partner[] = [
   { name: 'Coursera', logoUrl: 'https://picsum.photos/seed/p3/100/100' },
   { name: 'Local Chamber of Commerce', logoUrl: 'https://picsum.photos/seed/p4/100/100' }
 ]
+
+    

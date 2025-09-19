@@ -73,3 +73,11 @@ export type Partner = {
     name: string;
     logoUrl: string;
 }
+
+export type CenterInfo = {
+    mission: string;
+    schedule: string;
+    registrationFee: number;
+}
+
+    
