@@ -5,7 +5,7 @@ import { EventCard } from "@/components/dashboard/event-card";
 import { MOCK_EVENTS, MOCK_USERS } from "@/lib/mock-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Edit, Loader2, MoreVertical, PlusCircle, Trash2 } from "lucide-react";
+import { Edit, Eye, Loader2, MoreVertical, PlusCircle, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Event } from "@/lib/types";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,7 +23,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import Link from "next/link";
 
 
 // In a real app, this would come from an auth context
@@ -262,10 +263,17 @@ export default function EventsPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                     <DropdownMenuItem asChild>
+                                        <Link href={`/events/${event.id}`}>
+                                            <Eye className="mr-2 h-4 w-4" />
+                                            View Details
+                                        </Link>
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleOpenEditDialog(event)}>
                                         <Edit className="mr-2 h-4 w-4" />
                                         Edit
                                     </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
                                      <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
@@ -308,10 +316,17 @@ export default function EventsPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                     <DropdownMenuItem asChild>
+                                        <Link href={`/events/${event.id}`}>
+                                            <Eye className="mr-2 h-4 w-4" />
+                                            View Details
+                                        </Link>
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleOpenEditDialog(event)}>
                                         <Edit className="mr-2 h-4 w-4" />
                                         Edit
                                     </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
                                      <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
