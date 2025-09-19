@@ -9,6 +9,14 @@ export const MOCK_USERS: { [key: string]: User } = {
     avatarUrl: 'https://picsum.photos/seed/101/100/100',
     enrolledCourseIds: ['course-1', 'course-2'],
   },
+  teacher: {
+    id: 'user-teacher',
+    name: 'Dr. Evelyn Reed',
+    email: 'e.reed@ffbf.com',
+    role: 'teacher',
+    avatarUrl: 'https://picsum.photos/seed/201/200/200',
+    enrolledCourseIds: ['course-2'],
+  },
   admin: {
     id: 'user-admin',
     name: 'Admin Director',
@@ -34,7 +42,7 @@ export const MOCK_COURSES: Course[] = [
     title: 'Programming',
     description: 'Learn the fundamentals of web development with HTML, CSS, JavaScript, and React.',
     price: 100000,
-    teacherIds: ['teacher-2'],
+    teacherIds: ['user-teacher'],
     schedule: 'Tue, Thu | 6:00 - 8:00 PM',
     imageUrl: 'https://picsum.photos/seed/2/600/400',
     imageHint: 'code screen',

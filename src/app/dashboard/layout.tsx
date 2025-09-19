@@ -18,8 +18,9 @@ import { MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 
 // In a real app, this would come from your auth provider
-const userRole = MOCK_USERS.student.role;
-// const userRole = MOCK_USERS.admin.role;
+const user = MOCK_USERS.admin;
+// const user = MOCK_USERS.student;
+const userRole = user.role;
 
 const studentNav = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -38,7 +39,22 @@ const adminNav = [
   { href: "/dashboard/settings", icon: Settings, label: "Center Info" },
 ];
 
-const navItems = userRole === 'admin' ? adminNav : studentNav;
+const teacherNav = [
+  { href: "/dashboard", icon: Home, label: "Dashboard" },
+  { href: "/dashboard/courses", icon: Library, label: "My Courses" },
+  { href: "/dashboard/documents", icon: FileText, label: "Upload Documents" },
+   { href: "/dashboard/students", icon: UserIcon, label: "My Students" },
+  { href: "/dashboard/events", icon: Calendar, label: "Events" },
+];
+
+
+let navItems = studentNav;
+if (userRole === 'admin') {
+  navItems = adminNav;
+} else if (userRole === 'teacher') {
+  navItems = teacherNav;
+}
+
 
 export default function DashboardLayout({
   children,
@@ -88,8 +104,8 @@ export default function DashboardLayout({
         <header className="flex h-16 items-center justify-between border-b bg-card px-6">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="md:hidden" />
-            <h2 className="font-headline text-xl font-semibold">
-              {userRole === 'admin' ? 'Admin Dashboard' : 'Student Dashboard'}
+            <h2 className="font-headline text-xl font-semibold capitalize">
+              {userRole} Dashboard
             </h2>
           </div>
           <UserNav />
