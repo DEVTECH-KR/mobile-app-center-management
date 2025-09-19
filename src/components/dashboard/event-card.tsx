@@ -1,3 +1,4 @@
+
 import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { format } from "date-fns";
 
 export function EventCard({ event, userRole }: { event: Event, userRole: UserRole }) {
   const eventDate = new Date(event.date);
+  const detailsUrl = userRole === 'admin' ? `/dashboard/events/${event.id}` : `/events/${event.id}`;
 
   return (
     <Card className="overflow-hidden flex flex-col">
@@ -35,7 +37,7 @@ export function EventCard({ event, userRole }: { event: Event, userRole: UserRol
       </CardContent>
       <CardFooter className="gap-2">
         <Button variant="outline" className="w-full" asChild>
-            <Link href={`/events/${event.id}`}>View Details</Link>
+            <Link href={detailsUrl}>View Details</Link>
         </Button>
         {!event.isPast && (
             <Button className="w-full">
