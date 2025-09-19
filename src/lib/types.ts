@@ -56,7 +56,7 @@ export type Event = {
   details?: string;
   date: string;
   isPast: boolean;
-  imageUrl: string;
+  imageUrls: string[];
   imageHint: string;
 };
 
@@ -79,5 +79,3 @@ export type CenterInfo = {
     schedule: string;
     registrationFee: number;
 }
-
-    

@@ -7,6 +7,7 @@ import type { Event, UserRole } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Gift } from "lucide-react";
 import { format } from "date-fns";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel";
 
 export function EventCard({ event, userRole }: { event: Event, userRole: UserRole }) {
   const eventDate = new Date(event.date);
@@ -14,16 +15,28 @@ export function EventCard({ event, userRole }: { event: Event, userRole: UserRol
 
   return (
     <Card className="overflow-hidden flex flex-col">
-      <div className="relative">
-        <Image
-          src={event.imageUrl}
-          alt={event.title}
-          width={600}
-          height={400}
-          className="aspect-[3/2] w-full object-cover"
-          data-ai-hint={event.imageHint}
-        />
-      </div>
+      <Carousel className="w-full">
+        <CarouselContent>
+          {event.imageUrls.map((url, index) => (
+            <CarouselItem key={index}>
+              <Image
+                src={url}
+                alt={`${event.title} - Image ${index + 1}`}
+                width={600}
+                height={400}
+                className="aspect-[3/2] w-full object-cover"
+                data-ai-hint={event.imageHint}
+              />
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        {event.imageUrls.length > 1 && (
+          <>
+            <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2" />
+            <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2" />
+          </>
+        )}
+      </Carousel>
       <CardHeader>
         <CardTitle className="font-headline text-xl">{event.title}</CardTitle>
         <div className="flex items-center text-sm text-muted-foreground gap-2">
@@ -49,5 +62,3 @@ export function EventCard({ event, userRole }: { event: Event, userRole: UserRol
     </Card>
   );
 }
-
-    

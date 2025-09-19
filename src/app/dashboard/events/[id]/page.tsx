@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { ArrowLeft, Calendar, Gift } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 export default function EventDetailsPage({ params }: { params: { id: string } }) {
   const event = MOCK_EVENTS.find((e) => e.id === params.id);
@@ -28,14 +29,28 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
         <div className="grid md:grid-cols-5 gap-8">
             <div className="md:col-span-3">
-              <Image
-                src={event.imageUrl}
-                alt={event.title}
-                width={1200}
-                height={800}
-                className="rounded-lg object-cover w-full aspect-[3/2]"
-                data-ai-hint={event.imageHint}
-              />
+              <Carousel className="w-full">
+                <CarouselContent>
+                  {event.imageUrls.map((url, index) => (
+                    <CarouselItem key={index}>
+                      <Image
+                        src={url}
+                        alt={`${event.title} - Image ${index + 1}`}
+                        width={1200}
+                        height={800}
+                        className="rounded-lg object-cover w-full aspect-[3/2]"
+                        data-ai-hint={event.imageHint}
+                      />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                {event.imageUrls.length > 1 && (
+                  <>
+                    <CarouselPrevious className="left-2" />
+                    <CarouselNext className="right-2" />
+                  </>
+                )}
+              </Carousel>
             </div>
             <div className="md:col-span-2 space-y-4">
                 <h1 className="font-headline text-4xl font-extrabold tracking-tight">

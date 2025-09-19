@@ -5,7 +5,7 @@ import { EventCard } from "@/components/dashboard/event-card";
 import { MOCK_EVENTS, MOCK_USERS } from "@/lib/mock-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Edit, Eye, FileUp, Loader2, MoreVertical, PlusCircle, Trash2 } from "lucide-react";
+import { Edit, Eye, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import type { Event } from "@/lib/types";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import Image from "next/image";
 
 
 // In a real app, this would come from an auth context
@@ -36,7 +37,7 @@ const formSchema = z.object({
   details: z.string().optional(),
   date: z.date({ required_error: "A date is required." }),
   isPast: z.boolean().default(false),
-  imageUrl: z.string().url({ message: "Please enter a valid URL." }),
+  imageUrls: z.array(z.string().url()).min(1, { message: "At least one image is required." }),
   imageHint: z.string().optional(),
 });
 
@@ -45,23 +46,46 @@ export default function EventsPage() {
     const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             isPast: false,
+            imageUrls: [],
         }
     });
 
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files || []);
+        const currentUrls = form.getValues('imageUrls') || [];
+        
+        const newPreviews = files.map(file => URL.createObjectURL(file));
+        // In a real app, you'd upload files and get back URLs.
+        // For this prototype, we'll just use the blob URLs as placeholders.
+        const allPreviews = [...imagePreviews, ...newPreviews];
+        setImagePreviews(allPreviews);
+        form.setValue('imageUrls', allPreviews, { shouldValidate: true });
+    };
+
+    const removeImage = (index: number) => {
+        const currentPreviews = [...imagePreviews];
+        currentPreviews.splice(index, 1);
+        setImagePreviews(currentPreviews);
+        form.setValue('imageUrls', currentPreviews, { shouldValidate: true });
+    };
+
     const handleOpenCreateDialog = () => {
         setEditingEvent(null);
-        form.reset({ title: "", description: "", details: "", date: new Date(), isPast: false, imageUrl: "", imageHint: "" });
+        setImagePreviews([]);
+        form.reset({ title: "", description: "", details: "", date: new Date(), isPast: false, imageUrls: [], imageHint: "" });
         setIsFormDialogOpen(true);
     };
 
     const handleOpenEditDialog = (event: Event) => {
         setEditingEvent(event);
+        setImagePreviews(event.imageUrls);
         form.reset({
             ...event,
             date: new Date(event.date),
@@ -103,6 +127,7 @@ export default function EventsPage() {
                 }
                 setIsFormDialogOpen(false);
                 setEditingEvent(null);
+                setImagePreviews([]);
                 form.reset();
             }, 500);
         })()
@@ -142,7 +167,7 @@ export default function EventsPage() {
                             </DialogDescription>
                         </DialogHeader>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
                             <FormField control={form.control} name="title" render={({ field }) => (
                                 <FormItem className="md:col-span-2">
                                     <FormLabel>Title</FormLabel>
@@ -199,26 +224,38 @@ export default function EventsPage() {
                                 <FormMessage />
                                 </FormItem>
                             )}/>
-                            <div className="md:col-span-2 space-y-2">
-                                <FormLabel>Event Image</FormLabel>
-                                <div className="flex items-center gap-2">
-                                    <FormField control={form.control} name="imageUrl" render={({ field }) => (
-                                        <FormItem className="flex-1">
-                                            <FormControl><Input type="url" placeholder="Paste image URL..." {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                     <div className="relative">
-                                        <Button type="button" variant="outline">
-                                            <FileUp className="mr-2 h-4 w-4" />
-                                            Upload
+                            <div className="md:col-span-2 space-y-4">
+                                <FormItem>
+                                    <FormLabel>Event Images</FormLabel>
+                                    <div className="relative">
+                                        <Button type="button" variant="outline" asChild className="cursor-pointer w-full">
+                                            <div>
+                                                <FileUp className="mr-2 h-4 w-4" />
+                                                Upload Images
+                                            </div>
                                         </Button>
-                                        <Input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled/>
+                                        <Input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" multiple onChange={handleFileChange} accept="image/*"/>
                                     </div>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                    You can paste a URL or upload a file (upload disabled in prototype).
-                                </p>
+                                    <FormMessage {...form.getFieldState("imageUrls")}/>
+                                </FormItem>
+                                {imagePreviews.length > 0 && (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                                        {imagePreviews.map((src, index) => (
+                                            <div key={index} className="relative group aspect-square">
+                                                <Image src={src} alt={`Preview ${index + 1}`} fill className="object-cover rounded-md" />
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={() => removeImage(index)}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                              <FormField control={form.control} name="imageHint" render={({ field }) => (
                                 <FormItem className="md:col-span-2">
@@ -373,5 +410,3 @@ export default function EventsPage() {
     </div>
   );
 }
-
-    

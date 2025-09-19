@@ -114,7 +114,7 @@ export const MOCK_EVENTS: Event[] = [
     details: 'The conference will be held at the National Convention Center. Topics include AI, blockchain, and quantum computing. Breakfast and lunch will be provided. Please RSVP by October 1st.',
     date: '2024-10-25',
     isPast: false,
-    imageUrl: 'https://picsum.photos/seed/4/600/400',
+    imageUrls: ['https://picsum.photos/seed/4/600/400', 'https://picsum.photos/seed/41/600/400'],
     imageHint: 'conference presentation',
   },
   {
@@ -124,7 +124,7 @@ export const MOCK_EVENTS: Event[] = [
     details: 'This workshop is perfect for beginners and intermediate developers looking to sharpen their skills. We will cover React, Next.js, and Tailwind CSS. Bring your own laptop. Snacks and coffee will be available.',
     date: '2024-11-15',
     isPast: false,
-    imageUrl: 'https://picsum.photos/seed/5/600/400',
+    imageUrls: ['https://picsum.photos/seed/5/600/400'],
     imageHint: 'community gathering',
   },
   {
@@ -134,7 +134,7 @@ export const MOCK_EVENTS: Event[] = [
     details: 'A memorable day for our students, their families, and our staff. The ceremony was held at the Grand Theater and featured a keynote speech by a renowned academic. All graduates received their diplomas and special awards were given for outstanding performance.',
     date: '2023-12-20',
     isPast: true,
-    imageUrl: 'https://picsum.photos/seed/6/600/400',
+    imageUrls: ['https://picsum.photos/seed/6/600/400', 'https://picsum.photos/seed/61/600/400', 'https://picsum.photos/seed/62/600/400'],
     imageHint: 'graduation ceremony',
   },
 ];
@@ -159,5 +159,3 @@ export const MOCK_PARTNERS: Partner[] = [
   { name: 'Coursera', logoUrl: 'https://picsum.photos/seed/p3/100/100' },
   { name: 'Local Chamber of Commerce', logoUrl: 'https://picsum.photos/seed/p4/100/100' }
 ]
-
-    
