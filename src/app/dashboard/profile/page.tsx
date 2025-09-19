@@ -16,8 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 // In a real app, this would come from an auth context. For now, we simulate it.
-// We'll use the admin user as the default for demonstration.
-const currentUserId = 'user-admin'; 
+const currentUserKey = 'admin'; 
 const allUsers = MOCK_USERS;
 
 
@@ -31,7 +30,7 @@ const profileFormSchema = z.object({
 export default function ProfilePage() {
     // In a real app, you would fetch the user or get it from a context.
     // Here we're finding it in the mock data and managing its state locally.
-    const [user, setUser] = useState<User | undefined>(allUsers[currentUserId]);
+    const [user, setUser] = useState<User | undefined>(allUsers[currentUserKey]);
 
     const { toast } = useToast();
 
@@ -63,7 +62,7 @@ export default function ProfilePage() {
                 
                 // In a real app, this mock data update wouldn't be necessary
                 // as data would be re-fetched or the cache updated.
-                MOCK_USERS[currentUserId] = updatedUser;
+                MOCK_USERS[currentUserKey] = updatedUser;
 
                 toast({
                     title: "Profile Updated",

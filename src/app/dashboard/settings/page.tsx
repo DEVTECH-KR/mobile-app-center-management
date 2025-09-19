@@ -11,7 +11,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Monitor, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 // In a real app, this would come from an auth context
@@ -25,6 +27,7 @@ const formSchema = z.object({
 
 export default function SettingsPage() {
     const { toast } = useToast();
+    const { setTheme, theme } = useTheme();
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -67,48 +70,79 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>General Settings</CardTitle>
-          <CardDescription>Update mission statement, schedule, and fees.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField control={form.control} name="mission" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Mission Statement</FormLabel>
-                            <FormControl><Textarea rows={5} {...field} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}/>
-                     <FormField control={form.control} name="schedule" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Schedule</FormLabel>
-                            <FormControl><Input {...field} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}/>
-                     <FormField control={form.control} name="registrationFee" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Registration Fee (FBU)</FormLabel>
-                            <FormControl><Input type="number" {...field} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}/>
-                    
-                    <div className="flex justify-end">
-                        <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
-                            {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Changes
-                        </Button>
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+            <CardHeader>
+            <CardTitle>General Settings</CardTitle>
+            <CardDescription>Update mission statement, schedule, and fees.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <FormField control={form.control} name="mission" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Mission Statement</FormLabel>
+                                <FormControl><Textarea rows={5} {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                        <FormField control={form.control} name="schedule" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Schedule</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                        <FormField control={form.control} name="registrationFee" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Registration Fee (FBU)</FormLabel>
+                                <FormControl><Input type="number" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}/>
+                        
+                        <div className="flex justify-end">
+                            <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
+                                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save Changes
+                            </Button>
+                        </div>
+                    </form>
+            </Form>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Appearance</CardTitle>
+                <CardDescription>Customize the look and feel of the dashboard.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <RadioGroup value={theme} onValueChange={setTheme} className="space-y-2">
+                    <Label>Theme</Label>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="light" id="light" />
+                        <Label htmlFor="light" className="flex items-center gap-2">
+                            <Sun className="h-4 w-4"/> Light
+                        </Label>
                     </div>
-                </form>
-          </Form>
-        </CardContent>
-      </Card>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="dark" id="dark" />
+                        <Label htmlFor="dark" className="flex items-center gap-2">
+                            <Moon className="h-4 w-4"/> Dark
+                        </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="system" id="system" />
+                        <Label htmlFor="system" className="flex items-center gap-2">
+                            <Monitor className="h-4 w-4"/> System
+                        </Label>
+                    </div>
+                </RadioGroup>
+            </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
 
-    
