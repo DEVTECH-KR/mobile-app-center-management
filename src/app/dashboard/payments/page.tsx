@@ -31,24 +31,29 @@ export default function PaymentsPage() {
                 // In a real app, you'd fetch payment details for this user and course.
                 // Here we'll generate some mock details or use the main one if it matches.
                 let paymentDetails = null;
-                if (user.id === MOCK_PAYMENTS.userId && course.id === MOCK_PAYMENTS.courseId) {
+                if (user.id === 'user-1' && course.id === 'course-1') {
                     paymentDetails = MOCK_PAYMENTS;
-                } else {
-                    // Create mock payment details for other courses
-                    const totalDue = course.price + 20000;
+                } else if (user.id === 'user-1' && course.id === 'course-2') {
+                     // Create mock payment details for other courses for the main student
+                    const totalDue = course.price + 20000; // registration + course
                     paymentDetails = {
                         userId: user.id,
                         courseId: course.id,
                         registrationFee: 20000,
                         totalDue: totalDue,
-                        totalPaid: 0,
+                        totalPaid: 20000,
                         installments: [
-                            { name: 'Registration Fee', amount: 20000, status: 'Unpaid', dueDate: '2024-08-01' },
-                            { name: 'Installment 1', amount: course.price / 4, status: 'Unpaid', dueDate: '2024-09-01' },
+                            { name: 'Registration Fee', amount: 20000, status: 'Paid', dueDate: '2024-08-01' },
+                            { name: 'Installment 1', amount: course.price / 2, status: 'Unpaid', dueDate: '2024-09-01' },
+                            { name: 'Installment 2', amount: course.price / 2, status: 'Unpaid', dueDate: '2024-10-01' },
                         ]
                     };
                 }
                 
+                if (!paymentDetails) {
+                    return null;
+                }
+
                 return (
                     <PaymentStatusCard key={course.id} paymentDetails={paymentDetails}/>
                 )
@@ -63,5 +68,3 @@ export default function PaymentsPage() {
     </div>
   );
 }
-
-    
