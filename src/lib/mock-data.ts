@@ -9,6 +9,12 @@ export const MOCK_USERS: { [key: string]: User } = {
     avatarUrl: 'https://picsum.photos/seed/101/100/100',
     enrolledCourseIds: ['course-1', 'course-2'],
     classIds: ['class-1'],
+    gender: 'male',
+    nationality: 'Congolese',
+    educationLevel: 'Bachelors',
+    university: 'University of Kinshasa',
+    address: '123 Main St, Kinshasa, DRC',
+    phone: '+243 812 345 678'
   },
   student2: {
     id: 'user-2',
@@ -18,6 +24,12 @@ export const MOCK_USERS: { [key: string]: User } = {
     avatarUrl: 'https://picsum.photos/seed/103/100/100',
     enrolledCourseIds: ['course-3'],
     classIds: ['class-3'],
+    gender: 'female',
+    nationality: 'Burundian',
+    educationLevel: 'Masters',
+    university: 'University of Burundi',
+    address: '456 Market St, Bujumbura, Burundi',
+    phone: '+257 22 40 12 34'
   },
   teacher: {
     id: 'user-teacher',
@@ -27,6 +39,13 @@ export const MOCK_USERS: { [key: string]: User } = {
     avatarUrl: 'https://picsum.photos/seed/201/200/200',
     enrolledCourseIds: ['course-2'],
     classIds: ['class-2'],
+    gender: 'female',
+    nationality: 'Other',
+    otherNationality: 'American',
+    educationLevel: 'Doctorate',
+    university: 'MIT',
+    address: '789 Tech Ave, Cambridge, USA',
+    phone: '+1 617 555 0100'
   },
   teacher2: {
     id: 'user-teacher2',
@@ -35,7 +54,14 @@ export const MOCK_USERS: { [key: string]: User } = {
     role: 'teacher',
     avatarUrl: 'https://picsum.photos/seed/202/200/200',
     enrolledCourseIds: ['course-1'],
-    classIds: ['class-1']
+    classIds: ['class-1'],
+    gender: 'male',
+    nationality: 'Other',
+    otherNationality: 'Canadian',
+    educationLevel: 'Masters',
+    university: 'University of Toronto',
+    address: '101 University Ave, Toronto, Canada',
+    phone: '+1 416 555 0101'
   },
   admin: {
     id: 'user-admin',
@@ -43,6 +69,12 @@ export const MOCK_USERS: { [key: string]: User } = {
     email: 'admin@ffbf.com',
     role: 'admin',
     avatarUrl: 'https://picsum.photos/seed/102/100/100',
+    gender: 'other',
+    nationality: 'Congolese',
+    educationLevel: 'Masters',
+    university: 'Harvard University',
+    address: 'Admin Palace, Kinshasa, DRC',
+    phone: '+243 800 000 000'
   },
 };
 

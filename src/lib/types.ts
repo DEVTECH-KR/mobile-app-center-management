@@ -8,6 +8,14 @@ export type User = {
   avatarUrl?: string;
   enrolledCourseIds?: string[];
   classIds?: string[]; // For students and teachers
+  // Extended profile information
+  gender?: "male" | "female" | "other";
+  nationality?: string;
+  otherNationality?: string;
+  educationLevel?: string;
+  university?: string;
+  address?: string;
+  phone?: string;
 };
 
 export type Course = {
@@ -18,7 +26,7 @@ export type Course = {
   teacherIds: string[];
   days: string[];
   startTime: string;
-endTime: string;
+  endTime: string;
   imageUrl: string;
   imageHint: string;
   levels: string[]; // e.g., ['Beginner', 'Intermediate', 'Advanced']
