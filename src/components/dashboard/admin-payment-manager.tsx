@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -19,35 +20,91 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileUp, Search } from "lucide-react";
+import { FileUp, Loader2, Search } from "lucide-react";
 import { useState } from "react";
-import type { Installment } from "@/lib/types";
+import type { Installment, PaymentDetails, User } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { statusColors } from "./payment-status";
+import { Checkbox } from "../ui/checkbox";
 
-// In a real app, this would be a list of all students
-const allStudents = [MOCK_USERS.student, { ...MOCK_USERS.student, id: 'user-2', name: 'Jane Smith', email: 'jane@example.com' }];
+type StudentPayment = User & { paymentDetails: PaymentDetails | null };
 
-const studentPayments = allStudents.map(student => ({
-    ...student,
-    paymentDetails: {
-        ...MOCK_PAYMENTS,
-        totalPaid: student.id === 'user-2' ? 20000 + 12500 : MOCK_PAYMENTS.totalPaid,
-        installments: student.id === 'user-2' ? MOCK_PAYMENTS.installments.map((p, i) => i < 2 ? {...p, status: 'Paid'} : {...p, status: 'Unpaid'}) : MOCK_PAYMENTS.installments
+const allStudents = Object.values(MOCK_USERS).filter(u => u.role === 'student');
+
+const initialStudentPayments: StudentPayment[] = allStudents.map(student => {
+    // In a real app, you'd fetch this from a DB
+    const paymentDetails = student.id === 'user-1' ? MOCK_PAYMENTS : null;
+    if (student.id === 'user-2' && paymentDetails) { // Create some variation for demo
+         paymentDetails.totalPaid = 20000 + 12500;
+         paymentDetails.installments = paymentDetails.installments.map((p, i) => i < 2 ? {...p, status: 'Paid'} : {...p, status: 'Unpaid'});
     }
-}))
+    return {
+        ...student,
+        paymentDetails
+    }
+});
 
 
 export function AdminPaymentManager() {
-    const [selectedInstallments, setSelectedInstallments] = useState<Installment[]>([]);
+    const [studentPayments, setStudentPayments] = useState<StudentPayment[]>(initialStudentPayments);
+    const [selectedStudent, setSelectedStudent] = useState<StudentPayment | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [pendingInstallments, setPendingInstallments] = useState<Installment[]>([]);
+    const { toast } = useToast();
 
-    const handleOpenDialog = (installments: Installment[]) => {
-        setSelectedInstallments(installments);
+    const handleOpenDialog = (student: StudentPayment) => {
+        if (!student.paymentDetails) return;
+        setSelectedStudent(student);
+        // Deep copy to avoid direct state mutation before saving
+        setPendingInstallments(JSON.parse(JSON.stringify(student.paymentDetails.installments)));
         setIsDialogOpen(true);
     };
+
+    const handleInstallmentToggle = (installmentName: string) => {
+        setPendingInstallments(prev => prev.map(inst =>
+            inst.name === installmentName
+                ? { ...inst, status: inst.status === 'Paid' ? 'Unpaid' : 'Paid' }
+                : inst
+        ));
+    };
+
+    const handleSaveChanges = () => {
+        if (!selectedStudent || !selectedStudent.paymentDetails) return;
+        
+        setIsSubmitting(true);
+        // Simulate API call
+        setTimeout(() => {
+            const newTotalPaid = pendingInstallments
+                .filter(i => i.status === 'Paid')
+                .reduce((sum, i) => sum + i.amount, 0);
+
+            const updatedPaymentDetails: PaymentDetails = {
+                ...selectedStudent.paymentDetails!,
+                installments: pendingInstallments,
+                totalPaid: newTotalPaid,
+            };
+
+            setStudentPayments(prev => prev.map(sp =>
+                sp.id === selectedStudent.id
+                    ? { ...sp, paymentDetails: updatedPaymentDetails }
+                    : sp
+            ));
+
+            setIsSubmitting(false);
+            setIsDialogOpen(false);
+            setSelectedStudent(null);
+            toast({
+                title: "Payment Updated",
+                description: `Payment record for ${selectedStudent.name} has been successfully updated.`,
+            });
+        }, 500);
+    };
+
 
     const currencyFormatter = new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -76,10 +133,23 @@ export function AdminPaymentManager() {
           </TableHeader>
           <TableBody>
             {studentPayments.map((student) => {
+              if (!student.paymentDetails) {
+                 return (
+                    <TableRow key={student.id}>
+                        <TableCell>
+                            <div className="font-medium">{student.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                            {student.email}
+                            </div>
+                        </TableCell>
+                        <TableCell colSpan={4} className="text-muted-foreground">No payment records found.</TableCell>
+                    </TableRow>
+                 )
+              }
               const { totalPaid, totalDue } = student.paymentDetails;
               const progress = (totalPaid / totalDue) * 100;
               const isFullyPaid = progress >= 100;
-              const course = MOCK_COURSES.find(c => c.id === student.paymentDetails.courseId);
+              const course = MOCK_COURSES.find(c => c.id === student.paymentDetails!.courseId);
 
               return (
                 <TableRow key={student.id}>
@@ -97,12 +167,12 @@ export function AdminPaymentManager() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={isFullyPaid ? "default" : "secondary"}>
-                      {isFullyPaid ? "Fully Paid" : "Partial"}
+                    <Badge variant={isFullyPaid ? "default" : progress > 0 ? "secondary" : "outline"}>
+                      {isFullyPaid ? "Fully Paid" : progress > 0 ? "Partial" : "Unpaid"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenDialog(student.paymentDetails.installments)}>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenDialog(student)}>
                       Update Payment
                     </Button>
                   </TableCell>
@@ -116,21 +186,33 @@ export function AdminPaymentManager() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Payment Record</DialogTitle>
+            <DialogTitle>Update Payment Record for {selectedStudent?.name}</DialogTitle>
             <DialogDescription>
-              Record an in-person payment and upload proof. The student will be
-              notified.
+              Mark installments as paid and upload proof of payment. The student will be notified.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {/* A real implementation would have a form here */}
             <p className="font-medium">Installments:</p>
-            {selectedInstallments.map(inst => (
-                <div key={inst.name} className="flex justify-between items-center">
-                    <span>{inst.name} ({currencyFormatter.format(inst.amount)})</span>
-                    <Badge variant={inst.status === 'Paid' ? 'default' : 'outline'}>{inst.status}</Badge>
+            <div className="space-y-2">
+            {pendingInstallments.map(inst => (
+                <div key={inst.name} className={cn("flex items-center justify-between rounded-md border p-3 transition-colors", inst.status === 'Paid' && 'bg-primary/10')}>
+                    <div className="flex items-center gap-3">
+                         <Checkbox
+                            id={`inst-${inst.name}`}
+                            checked={inst.status === 'Paid'}
+                            onCheckedChange={() => handleInstallmentToggle(inst.name)}
+                         />
+                         <div>
+                            <Label htmlFor={`inst-${inst.name}`} className="font-medium">{inst.name}</Label>
+                            <p className="text-sm text-muted-foreground">{currencyFormatter.format(inst.amount)}</p>
+                        </div>
+                    </div>
+                    <Badge className={cn(statusColors[inst.status])}>
+                        {inst.status}
+                    </Badge>
                 </div>
             ))}
+            </div>
              <div className="grid w-full max-w-sm items-center gap-1.5 mt-4">
                 <Label htmlFor="payment-proof">Payment Proof (Receipt)</Label>
                 <div className="flex items-center gap-2">
@@ -141,10 +223,14 @@ export function AdminPaymentManager() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => setIsDialogOpen(false)}>Save Changes</Button>
+            <Button onClick={handleSaveChanges} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
   );
 }
+
