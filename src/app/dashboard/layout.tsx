@@ -1,4 +1,6 @@
 
+'use client';
+
 import {
   SidebarProvider,
   Sidebar,
@@ -10,30 +12,25 @@ import {
   SidebarInset,
   SidebarTrigger,
   SidebarFooter,
+  SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
 import { Home, Library, CreditCard, Calendar, FileText, Settings, Shield, User as UserIcon, LogOut, BookMarked, Send, Lock } from 'lucide-react';
 import { UserNav } from "@/components/dashboard/user-nav";
 import Link from "next/link";
 import Logo from "@/components/icons/logo";
-import { MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-// In a real app, this would come from your auth provider
-const user = MOCK_USERS.admin;
-const userRole = user.role;
-
-// A student has access if they are enrolled in at least one course.
-// Pending requests do not count.
-const studentHasAccess = user.role === 'student' && (user.enrolledCourseIds?.length ?? 0) > 0;
+import { useAuth } from "@/context/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 const navConfig = {
   student: [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
     { href: "/dashboard/courses", icon: Library, label: "Courses" },
-    { href: "/dashboard/payments", icon: CreditCard, label: "My Payments", locked: !studentHasAccess },
-    { href: "/dashboard/documents", icon: FileText, label: "Documents", locked: !studentHasAccess },
-    { href: "/dashboard/events", icon: Calendar, label: "Events", locked: !studentHasAccess },
+    { href: "/dashboard/payments", icon: CreditCard, label: "My Payments", requiresEnrollment: true },
+    { href: "/dashboard/documents", icon: FileText, label: "Documents", requiresEnrollment: true },
+    { href: "/dashboard/events", icon: Calendar, label: "Events" },
   ],
   admin: [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -54,14 +51,61 @@ const navConfig = {
   ],
 };
 
-const navItems = navConfig[userRole];
-
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, userProfile, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+
+  if (loading || !userProfile) {
+    return (
+       <SidebarProvider>
+        <Sidebar>
+          <SidebarHeader className="p-4">
+             <div className="flex items-center gap-2">
+                <Logo className="h-8 w-8 text-primary" />
+                <span className="font-bold font-headline text-lg group-data-[collapsible=icon]:hidden">
+                FFBF Training Hub
+                </span>
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarMenu>
+                <SidebarMenuSkeleton showIcon={true}/>
+                <SidebarMenuSkeleton showIcon={true}/>
+                <SidebarMenuSkeleton showIcon={true}/>
+                <SidebarMenuSkeleton showIcon={true}/>
+            </SidebarMenu>
+          </SidebarContent>
+        </Sidebar>
+         <div className="flex flex-col flex-1">
+          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card px-6">
+             <div className="flex items-center gap-4">
+                 <SidebarTrigger className="md:hidden" />
+            </div>
+          </header>
+          <main className="flex-1 overflow-y-auto p-6 bg-background">
+            {children}
+          </main>
+        </div>
+      </SidebarProvider>
+    );
+  }
+
+  const userRole = userProfile.role;
+  const navItems = navConfig[userRole] || [];
+  const studentHasAccess = userProfile.role === 'student' && (userProfile.enrolledCourseIds?.length ?? 0) > 0;
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -76,7 +120,8 @@ export default function DashboardLayout({
         <SidebarContent>
           <SidebarMenu>
             {navItems.map((item) => {
-              if (item.locked) {
+              const isLocked = item.requiresEnrollment && !studentHasAccess;
+              if (isLocked) {
                 return (
                   <SidebarMenuItem key={item.label}>
                     <Tooltip>
@@ -137,3 +182,4 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
+
