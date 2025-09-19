@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MOCK_CLASSES, MOCK_COURSES, MOCK_USERS } from "@/lib/mock-data";
 import { Input } from "@/components/ui/input";
-import { BookMarked, MoreVertical, PlusCircle, Search, Users } from "lucide-react";
+import { BookMarked, Loader2, MoreVertical, PlusCircle, Search, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +21,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +33,19 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
-import type { Course } from "@/lib/types";
+import type { Course, Class } from "@/lib/types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+
+
+const formSchema = z.object({
+  courseId: z.string({ required_error: "Please select a course." }),
+  level: z.string().optional(),
+  name: z.string().min(1, { message: "Class name is required." }),
+});
 
 
 // In a real app, this would come from an auth context
@@ -43,7 +54,40 @@ const allCourses = MOCK_COURSES;
 const allTeachers = Object.values(MOCK_USERS).filter(u => u.role === 'teacher');
 
 export default function ClassesPage() {
-    const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [classes, setClasses] = useState<Class[]>(MOCK_CLASSES);
+    const { toast } = useToast();
+
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            name: "",
+        },
+    });
+
+    const selectedCourseId = form.watch("courseId");
+    const selectedCourse = allCourses.find(c => c.id === selectedCourseId);
+
+    function onSubmit(values: z.infer<typeof formSchema>) {
+        // Simulate API call
+        setTimeout(() => {
+            const newClass: Class = {
+                id: `class-${Date.now()}`,
+                courseId: values.courseId,
+                name: values.name,
+                level: values.level || 'N/A',
+                teacherId: null,
+                studentIds: [],
+            }
+            setClasses(prev => [newClass, ...prev]);
+            toast({
+                title: "Class Created",
+                description: `The class "${newClass.name}" has been successfully created.`,
+            });
+            setIsCreateDialogOpen(false);
+            form.reset();
+        }, 500);
+    }
 
     if (currentUser.role !== 'admin') {
         return (
@@ -64,7 +108,7 @@ export default function ClassesPage() {
                 Create new classes, assign teachers, and view student enrollments.
             </p>
         </div>
-        <Dialog>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
                 <Button>
                     <PlusCircle className="mr-2 h-4 w-4"/>
@@ -72,47 +116,83 @@ export default function ClassesPage() {
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                <DialogTitle>Create a new class</DialogTitle>
-                <DialogDescription>
-                    Fill in the details below to create a new class.
-                </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="course" className="text-right">Course</Label>
-                        <Select onValueChange={(value) => setSelectedCourse(allCourses.find(c => c.id === value) || null)}>
-                            <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Select a course" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {allCourses.map(course => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    {selectedCourse && selectedCourse.levels && (
-                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="level" className="text-right">Level</Label>
-                            <Select>
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Select a level" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {selectedCourse.levels.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                        <DialogHeader>
+                        <DialogTitle>Create a new class</DialogTitle>
+                        <DialogDescription>
+                            Fill in the details below to create a new class.
+                        </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="grid gap-4 py-4">
+                            <FormField
+                                control={form.control}
+                                name="courseId"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Course</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a course" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                        {allCourses.map(course => <SelectItem key={course.id} value={course.id}>{course.title}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                            
+                            {selectedCourse && selectedCourse.levels && (
+                                <FormField
+                                    control={form.control}
+                                    name="level"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Level</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a level" />
+                                            </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {selectedCourse.levels.map(level => <SelectItem key={level} value={level}>{level}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
+                            <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Class Name</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g. Room A" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
-                    )}
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">
-                        Class Name
-                        </Label>
-                        <Input id="name" placeholder="e.g. Room A" className="col-span-3" />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button type="submit">Create Class</Button>
-                </DialogFooter>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={form.formState.isSubmitting}>
+                                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Create Class
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
             </DialogContent>
         </Dialog>
       </div>
@@ -129,9 +209,9 @@ export default function ClassesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {MOCK_CLASSES.map((cls) => {
+            {classes.map((cls) => {
               const course = MOCK_COURSES.find(c => c.id === cls.courseId);
-              const teacher = MOCK_USERS[cls.teacherId || ''] || null;
+              const teacher = Object.values(MOCK_USERS).find(u => u.id === cls.teacherId) || null;
               const students = cls.studentIds.map(id => Object.values(MOCK_USERS).find(u => u.id === id));
               return(
               <TableRow key={cls.id}>
