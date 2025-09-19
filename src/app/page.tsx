@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import Logo from '@/components/icons/logo';
 import { AppHeader } from '@/components/layout/app-header';
 
 export default function Home() {
@@ -26,10 +25,10 @@ export default function Home() {
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <Button size="lg" asChild>
-                <Link href="/login">Get Started</Link>
+                <Link href="/register">Get Started</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/courses">Explore Courses</Link>
+                <Link href="/login">Explore Courses</Link>
               </Button>
             </div>
           </div>

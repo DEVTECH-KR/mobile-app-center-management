@@ -9,12 +9,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import React from "react";
 
-const navLinks = [
-    { href: "/about", label: "About" },
-    { href: "/courses", label: "Courses" },
-    { href: "/events", label: "Events" },
-    { href: "/team", label: "Team" },
-];
+const navLinks: { href: string, label: string }[] = [];
 
 export function AppHeader() {
     const pathname = usePathname();
@@ -51,42 +46,9 @@ export function AppHeader() {
                 </nav>
                 
                 <div className="md:hidden">
-                    <Sheet open={isOpen} onOpenChange={setIsOpen}>
-                        <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                                <Menu />
-                                <span className="sr-only">Open Menu</span>
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left">
-                            <div className="flex flex-col gap-6 p-6">
-                                <Link href="/" className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
-                                    <Logo className="h-8 w-8 text-primary" />
-                                    <span className="font-bold font-headline text-lg">
-                                        FFBF Training Hub
-                                    </span>
-                                </Link>
-                                <div className="flex flex-col gap-4">
-                                {navLinks.map(link => (
-                                    <Link 
-                                        key={link.href}
-                                        href={link.href} 
-                                        onClick={() => setIsOpen(false)}
-                                        className={cn(
-                                            "text-base font-medium transition-colors hover:text-primary",
-                                            pathname === link.href ? "text-primary" : "text-foreground"
-                                        )}
-                                    >
-                                        {link.label}
-                                    </Link>
-                                ))}
-                                </div>
-                                <Button asChild>
-                                    <Link href="/login" onClick={() => setIsOpen(false)}>Login</Link>
-                                </Button>
-                            </div>
-                        </SheetContent>
-                    </Sheet>
+                     <Button asChild>
+                        <Link href="/login">Login</Link>
+                    </Button>
                 </div>
             </div>
         </header>
