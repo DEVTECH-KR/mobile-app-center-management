@@ -1,3 +1,4 @@
+
 import {
   SidebarProvider,
   Sidebar,
@@ -10,51 +11,50 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Home, Library, CreditCard, Calendar, FileText, Settings, Shield, User as UserIcon, LogOut, BookMarked } from 'lucide-react';
+import { Home, Library, CreditCard, Calendar, FileText, Settings, Shield, User as UserIcon, LogOut, BookMarked, Send, Lock } from 'lucide-react';
 import { UserNav } from "@/components/dashboard/user-nav";
 import Link from "next/link";
 import Logo from "@/components/icons/logo";
 import { MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // In a real app, this would come from your auth provider
-// const user = MOCK_USERS.admin;
 const user = MOCK_USERS.student;
 const userRole = user.role;
 
-const studentNav = [
-  { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/dashboard/courses", icon: Library, label: "Courses" },
-  { href: "/dashboard/payments", icon: CreditCard, label: "My Payments" },
-  { href: "/dashboard/documents", icon: FileText, label: "Documents" },
-  { href: "/dashboard/events", icon: Calendar, label: "Events" },
-];
+// A student has access if they are enrolled in at least one course.
+// Pending requests do not count.
+const studentHasAccess = user.role === 'student' && (user.enrolledCourseIds?.length ?? 0) > 0;
 
-const adminNav = [
-  { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/dashboard/courses", icon: Library, label: "Manage Courses" },
-  { href: "/dashboard/classes", icon: BookMarked, label: "Manage Classes" },
-  { href: "/dashboard/payments", icon: CreditCard, label: "Manage Payments" },
-  { href: "/dashboard/users", icon: UserIcon, label: "Manage Users" },
-  { href: "/dashboard/events", icon: Calendar,label: "Manage Events" },
-  { href: "/dashboard/settings", icon: Settings, label: "Center Info" },
-];
+const navConfig = {
+  student: [
+    { href: "/dashboard", icon: Home, label: "Dashboard" },
+    { href: "/dashboard/courses", icon: Library, label: "Courses" },
+    { href: "/dashboard/payments", icon: CreditCard, label: "My Payments", locked: !studentHasAccess },
+    { href: "/dashboard/documents", icon: FileText, label: "Documents", locked: !studentHasAccess },
+    { href: "/dashboard/events", icon: Calendar, label: "Events", locked: !studentHasAccess },
+  ],
+  admin: [
+    { href: "/dashboard", icon: Home, label: "Dashboard" },
+    { href: "/dashboard/enrollments", icon: Send, label: "Enrollment Requests"},
+    { href: "/dashboard/courses", icon: Library, label: "Manage Courses" },
+    { href: "/dashboard/classes", icon: BookMarked, label: "Manage Classes" },
+    { href: "/dashboard/payments", icon: CreditCard, label: "Manage Payments" },
+    { href: "/dashboard/users", icon: UserIcon, label: "Manage Users" },
+    { href: "/dashboard/events", icon: Calendar,label: "Manage Events" },
+    { href: "/dashboard/settings", icon: Settings, label: "Center Info" },
+  ],
+  teacher: [
+    { href: "/dashboard", icon: Home, label: "Dashboard" },
+    { href: "/dashboard/courses", icon: Library, label: "My Courses" },
+    { href: "/dashboard/documents", icon: FileText, label: "Upload Documents" },
+    { href: "/dashboard/students", icon: UserIcon, label: "My Students" },
+    { href: "/dashboard/events", icon: Calendar, label: "Events" },
+  ],
+};
 
-const teacherNav = [
-  { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/dashboard/courses", icon: Library, label: "My Courses" },
-  { href: "/dashboard/documents", icon: FileText, label: "Upload Documents" },
-   { href: "/dashboard/students", icon: UserIcon, label: "My Students" },
-  { href: "/dashboard/events", icon: Calendar, label: "Events" },
-];
-
-
-let navItems = studentNav;
-if (userRole === 'admin') {
-  navItems = adminNav;
-} else if (userRole === 'teacher') {
-  navItems = teacherNav;
-}
+const navItems = navConfig[userRole];
 
 
 export default function DashboardLayout({
@@ -75,16 +75,35 @@ export default function DashboardLayout({
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {navItems.map((item) => (
-              <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton asChild tooltip={item.label}>
-                  <Link href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            {navItems.map((item) => {
+              if (item.locked) {
+                return (
+                  <SidebarMenuItem key={item.label}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <SidebarMenuButton className="cursor-not-allowed text-muted-foreground" disabled>
+                          <Lock />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" align="center">
+                        <p>Complete your enrollment to unlock.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </SidebarMenuItem>
+                );
+              }
+              return (
+                <SidebarMenuItem key={item.label}>
+                  <SidebarMenuButton asChild tooltip={item.label}>
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-4">

@@ -1,12 +1,20 @@
 
+
 import Image from "next/image";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Course, UserRole } from "@/lib/types";
-import { BookOpen, CheckCircle, Clock, Eye } from "lucide-react";
+import { BookOpen, CheckCircle, Clock, Eye, Hourglass } from "lucide-react";
 import Link from "next/link";
 
-export function CourseCard({ course, userRole, isEnrolled }: { course: Course, userRole?: UserRole, isEnrolled?: boolean }) {
+interface CourseCardProps {
+  course: Course;
+  userRole?: UserRole;
+  isEnrolled?: boolean;
+  hasPendingRequest?: boolean;
+}
+
+export function CourseCard({ course, userRole, isEnrolled, hasPendingRequest }: CourseCardProps) {
   const currencyFormatter = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "FBU",
@@ -14,6 +22,45 @@ export function CourseCard({ course, userRole, isEnrolled }: { course: Course, u
   });
 
   const schedule = `${course.days.join(', ')} | ${course.startTime} - ${course.endTime}`;
+
+  const getButtonState = () => {
+    if (userRole === 'admin') {
+      return {
+        text: "View Details",
+        icon: Eye,
+        disabled: false,
+        variant: "outline" as const,
+        href: `/dashboard/courses/${course.id}`,
+      };
+    }
+    if (isEnrolled) {
+      return {
+        text: "Enrolled",
+        icon: CheckCircle,
+        disabled: true,
+        variant: "secondary" as const,
+        href: `/dashboard/courses/${course.id}`,
+      };
+    }
+    if (hasPendingRequest) {
+      return {
+        text: "Request Pending",
+        icon: Hourglass,
+        disabled: true,
+        variant: "secondary" as const,
+        href: `/dashboard/courses/${course.id}`,
+      };
+    }
+    return {
+      text: "Enroll Now",
+      icon: BookOpen,
+      disabled: false,
+      variant: "default" as const,
+      href: `/dashboard/courses/${course.id}`,
+    };
+  };
+
+  const buttonState = getButtonState();
 
   return (
     <Card className="flex flex-col overflow-hidden">
@@ -44,27 +91,13 @@ export function CourseCard({ course, userRole, isEnrolled }: { course: Course, u
           </div>
       </CardContent>
       <CardFooter>
-        {userRole === 'admin' ? (
-          <Button className="w-full" variant="outline" asChild>
-            <Link href={`/dashboard/courses/${course.id}`}>
-              <Eye className="mr-2"/>
-              View Details
+        <Button className="w-full" variant={buttonState.variant} disabled={buttonState.disabled} asChild>
+            <Link href={buttonState.href}>
+                <buttonState.icon className="mr-2"/>
+                {buttonState.text}
             </Link>
-          </Button>
-        ) : isEnrolled ? (
-            <Button className="w-full" disabled variant="secondary">
-                <CheckCircle className="mr-2"/>
-                Enrolled
-            </Button>
-        ) : (
-          <Button className="w-full">
-              <BookOpen className="mr-2"/>
-              Enroll Now
-          </Button>
-        )}
+        </Button>
       </CardFooter>
     </Card>
   );
 }
-
-    

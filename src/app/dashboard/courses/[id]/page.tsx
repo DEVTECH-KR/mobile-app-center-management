@@ -1,18 +1,63 @@
 
+'use client';
 import { Button } from "@/components/ui/button";
-import { MOCK_COURSES, MOCK_USERS } from "@/lib/mock-data";
+import { MOCK_COURSES, MOCK_USERS, MOCK_CENTER_INFO, MOCK_ENROLLMENT_REQUESTS } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, BookOpen, Clock, Tag, User, Star } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock, Tag, User, Star, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import type { EnrollmentRequest } from "@/lib/types";
+
+// In a real app, this would come from an auth context
+const currentUser = MOCK_USERS.student;
+
 
 export default function CourseDetailsPage({ params }: { params: { id: string } }) {
-  const course = MOCK_COURSES.find((c) => c.id === params.id);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRequestSubmitted, setIsRequestSubmitted] = useState(false);
+  const { toast } = useToast();
 
+  const course = MOCK_COURSES.find((c) => c.id === params.id);
+  
   if (!course) {
     notFound();
+  }
+
+  // Check if student is already enrolled or has a pending request
+  const isEnrolled = currentUser.enrolledCourseIds?.includes(course.id);
+  const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === currentUser.id && req.courseId === course.id && req.status === 'pending');
+  const canEnroll = !isEnrolled && !hasPendingRequest && !isRequestSubmitted;
+
+
+  const handleEnrollmentRequest = () => {
+    setIsSubmitting(true);
+    // Simulate an API call
+    setTimeout(() => {
+      // In a real app, you would create a new enrollment request record in the database.
+      const newRequest: EnrollmentRequest = {
+        id: `req-${Date.now()}`,
+        userId: currentUser.id,
+        courseId: course.id,
+        requestDate: new Date().toISOString(),
+        status: 'pending',
+      };
+      MOCK_ENROLLMENT_REQUESTS.push(newRequest);
+      currentUser.enrollmentRequestIds = [...(currentUser.enrollmentRequestIds || []), newRequest.id];
+
+      setIsSubmitting(false);
+      setShowConfirmDialog(false);
+      setIsRequestSubmitted(true);
+       toast({
+          title: "Enrollment Request Submitted!",
+          description: `Your request for ${course.title} has been received.`,
+        });
+    }, 1000);
   }
 
   const teachers = MOCK_USERS ? Object.values(MOCK_USERS).filter(u => u.role === 'teacher' && course.teacherIds.includes(u.id)) : [];
@@ -87,12 +132,52 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
                         </div>
                     </CardContent>
                 </Card>
-                 <Button size="lg" className="w-full">
+                 <Button size="lg" className="w-full" onClick={() => setShowConfirmDialog(true)} disabled={!canEnroll}>
                     <BookOpen className="mr-2 h-5 w-5" />
-                    Enroll Student
+                    {isEnrolled ? "Already Enrolled" : (hasPendingRequest || isRequestSubmitted) ? "Request Pending" : "Request Enrollment"}
                 </Button>
             </div>
           </div>
+
+          <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Enrollment Request</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to request enrollment for the course "{course.title}"?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleEnrollmentRequest} disabled={isSubmitting}>
+                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                   Confirm
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
+          <AlertDialog open={isRequestSubmitted && !showConfirmDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Request Submitted Successfully!</AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-4 pt-4 text-foreground">
+                            <p>You have reserved a spot for the training in <span className="font-semibold">{course.title}</span>.</p>
+                            <p>Please visit the center within 48 hours to pay the registration fee of <span className="font-semibold">{new Intl.NumberFormat("en-US", { style: "currency", currency: "FBU", minimumFractionDigits: 0 }).format(MOCK_CENTER_INFO.registrationFee)}</span> so that your spot can be definitively reserved.</p>
+                            <div className="text-sm text-muted-foreground border-l-4 pl-4">
+                                <p><span className="font-semibold">Center Address:</span> {MOCK_CENTER_INFO.address}</p>
+                                <p><span className="font-semibold">Contact:</span> {MOCK_CENTER_INFO.contact}</p>
+                            </div>
+                            <p>Once the payment has been made, you will have full access to our app: track your payments, download syllabi, access events, and more.</p>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                         <Button asChild className="w-full">
+                            <Link href="/dashboard/courses">Back to Courses</Link>
+                         </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
       </div>
   );
 }

@@ -1,5 +1,8 @@
 
+
 export type UserRole = "student" | "teacher" | "admin";
+
+export type EnrollmentStatus = "pending" | "approved" | "rejected";
 
 export type User = {
   id: string;
@@ -8,6 +11,7 @@ export type User = {
   role: UserRole;
   avatarUrl?: string;
   enrolledCourseIds?: string[];
+  enrollmentRequestIds?: string[];
   classIds?: string[]; // For students and teachers
   // Extended profile information
   gender?: "male" | "female" | "other";
@@ -22,7 +26,7 @@ export type User = {
 export type Course = {
   id: string;
   title: string;
-  description: string;
+  description:string;
   price: number; // in FBU
   teacherIds: string[];
   days: string[];
@@ -90,6 +94,15 @@ export type CenterInfo = {
     mission: string;
     schedule: string;
     registrationFee: number;
+    address: string;
+    contact: string;
 }
 
+export type EnrollmentRequest = {
+    id: string;
+    userId: string;
+    courseId: string;
+    requestDate: string;
+    status: EnrollmentStatus;
+}
     

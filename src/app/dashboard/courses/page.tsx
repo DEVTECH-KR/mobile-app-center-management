@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { CourseCard } from "@/components/dashboard/course-card";
-import { MOCK_COURSES, MOCK_USERS } from "@/lib/mock-data";
+import { MOCK_COURSES, MOCK_USERS, MOCK_ENROLLMENT_REQUESTS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Edit, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X, Clock, User, Users, Star } from "lucide-react";
 import type { Course, User as UserType } from "@/lib/types";
@@ -184,14 +184,20 @@ export default function CoursesPage() {
                 </p>
             </div>
             <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {courses.map((course) => (
-                    <CourseCard 
-                        key={course.id} 
-                        course={course} 
-                        userRole={currentUser.role}
-                        isEnrolled={currentUser.enrolledCourseIds?.includes(course.id)}
-                    />
-                ))}
+                {courses.map((course) => {
+                    const isEnrolled = currentUser.enrolledCourseIds?.includes(course.id);
+                    const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === currentUser.id && req.courseId === course.id && req.status === 'pending');
+                    
+                    return (
+                        <CourseCard 
+                            key={course.id} 
+                            course={course} 
+                            userRole={currentUser.role}
+                            isEnrolled={isEnrolled}
+                            hasPendingRequest={hasPendingRequest}
+                        />
+                    )
+                })}
             </div>
         </div>
       );

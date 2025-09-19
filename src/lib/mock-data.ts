@@ -1,5 +1,6 @@
 
-import { User, Course, PaymentDetails, Event, Document, UserRole, Partner, Class } from './types';
+
+import { User, Course, PaymentDetails, Event, Document, UserRole, Partner, Class, CenterInfo, EnrollmentRequest } from './types';
 
 export const MOCK_USERS: { [key: string]: User } = {
   student: {
@@ -8,7 +9,8 @@ export const MOCK_USERS: { [key: string]: User } = {
     email: 'student@ffbf.com',
     role: 'student',
     avatarUrl: 'https://picsum.photos/seed/101/100/100',
-    enrolledCourseIds: ['course-1', 'course-2'],
+    enrolledCourseIds: ['course-1'],
+    enrollmentRequestIds: ['req-2'],
     classIds: ['class-1'],
     gender: 'male',
     nationality: 'Congolese',
@@ -23,8 +25,9 @@ export const MOCK_USERS: { [key: string]: User } = {
     email: 'jane@example.com',
     role: 'student',
     avatarUrl: 'https://picsum.photos/seed/103/100/100',
-    enrolledCourseIds: ['course-3'],
-    classIds: ['class-3'],
+    enrolledCourseIds: [],
+    enrollmentRequestIds: ['req-1'],
+    classIds: [],
     gender: 'female',
     nationality: 'Burundian',
     educationLevel: 'Masters',
@@ -186,10 +189,12 @@ export const MOCK_DOCUMENTS: Document[] = [
     { id: 'doc-5', courseId: 'course-1', title: 'Advanced Formulas Assignment', type: 'Assignment', fileUrl: '#', uploadedAt: '2024-03-10', uploaderId: 'user-teacher2' },
 ];
 
-export const MOCK_CENTER_INFO = {
+export const MOCK_CENTER_INFO: CenterInfo = {
   mission: 'To empower individuals with practical skills and knowledge, fostering personal and professional growth for a brighter future. We are committed to providing high-quality training in a supportive and dynamic learning environment.',
   schedule: 'Open Monday to Saturday, from 8:00 AM to 9:00 PM.',
-  registrationFee: 20000
+  registrationFee: 20000,
+  address: '123 Ave de la Liberation, Gombe, Kinshasa, DRC',
+  contact: '+243 812 345 678 (Admin Director)',
 };
 
 export const MOCK_PARTNERS: Partner[] = [
@@ -197,6 +202,10 @@ export const MOCK_PARTNERS: Partner[] = [
   { name: 'Microsoft', logoUrl: 'https://picsum.photos/seed/p2/100/100' },
   { name: 'Coursera', logoUrl: 'https://picsum.photos/seed/p3/100/100' },
   { name: 'Local Chamber of Commerce', logoUrl: 'https://picsum.photos/seed/p4/100/100' }
-]
+];
 
+export const MOCK_ENROLLMENT_REQUESTS: EnrollmentRequest[] = [
+    { id: 'req-1', userId: 'user-2', courseId: 'course-3', requestDate: new Date().toISOString(), status: 'pending' },
+    { id: 'req-2', userId: 'user-1', courseId: 'course-2', requestDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), status: 'pending' },
+];
     
