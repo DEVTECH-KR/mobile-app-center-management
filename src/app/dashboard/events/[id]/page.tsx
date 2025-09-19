@@ -77,3 +77,5 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
       </div>
   );
 }
+
+    

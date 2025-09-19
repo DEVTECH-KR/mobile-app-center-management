@@ -20,7 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { format, isBefore, startOfToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -59,11 +59,10 @@ export default function EventsPage() {
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || []);
-        const currentUrls = form.getValues('imageUrls') || [];
         
-        const newPreviews = files.map(file => URL.createObjectURL(file));
         // In a real app, you'd upload files and get back URLs.
         // For this prototype, we'll just use the blob URLs as placeholders.
+        const newPreviews = files.map(file => URL.createObjectURL(file));
         const allPreviews = [...imagePreviews, ...newPreviews];
         setImagePreviews(allPreviews);
         form.setValue('imageUrls', allPreviews, { shouldValidate: true });
@@ -107,7 +106,12 @@ export default function EventsPage() {
             // Simulate API call
             setTimeout(() => {
                 if (editingEvent) {
-                    const updatedEvent = { ...editingEvent, ...values, date: format(values.date, 'yyyy-MM-dd') };
+                    const updatedEvent: Event = {
+                        ...editingEvent,
+                        ...values,
+                        date: format(values.date, 'yyyy-MM-dd'),
+                        isPast: values.isPast || isBefore(values.date, startOfToday()),
+                    };
                     setEvents(prev => prev.map(e => e.id === editingEvent.id ? updatedEvent : e));
                     toast({
                         title: "Event Updated",
@@ -118,6 +122,7 @@ export default function EventsPage() {
                         id: `event-${Date.now()}`,
                         ...values,
                         date: format(values.date, 'yyyy-MM-dd'),
+                        isPast: values.isPast || isBefore(values.date, startOfToday()),
                     }
                     setEvents(prev => [newEvent, ...prev]);
                     toast({
@@ -216,7 +221,6 @@ export default function EventsPage() {
                                         mode="single"
                                         selected={field.value}
                                         onSelect={field.onChange}
-                                        disabled={(date) => date < new Date("1900-01-01")}
                                         initialFocus
                                     />
                                     </PopoverContent>
@@ -410,3 +414,5 @@ export default function EventsPage() {
     </div>
   );
 }
+
+    
