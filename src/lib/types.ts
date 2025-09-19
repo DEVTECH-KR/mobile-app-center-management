@@ -16,7 +16,9 @@ export type Course = {
   description: string;
   price: number; // in FBU
   teacherIds: string[];
-  schedule: string;
+  days: string[];
+  startTime: string;
+  endTime: string;
   imageUrl: string;
   imageHint: string;
   levels?: string[]; // e.g., ['Beginner', 'Intermediate', 'Advanced']

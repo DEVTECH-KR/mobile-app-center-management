@@ -45,7 +45,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className="font-medium">{course.title}</p>
-                      <p className="text-sm text-muted-foreground">{course.schedule}</p>
+                      <p className="text-sm text-muted-foreground">{`${course.days.join(', ')} | ${course.startTime} - ${course.endTime}`}</p>
                     </div>
                   </div>
                 ))}

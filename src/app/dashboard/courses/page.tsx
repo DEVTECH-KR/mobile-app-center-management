@@ -5,8 +5,8 @@ import { useState } from "react";
 import { CourseCard } from "@/components/dashboard/course-card";
 import { MOCK_COURSES, MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
-import { Edit, Loader2, MoreVertical, PlusCircle, Trash2 } from "lucide-react";
-import type { Course } from "@/lib/types";
+import { Edit, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X, Clock } from "lucide-react";
+import type { Course, UserRole } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -31,16 +31,25 @@ import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import Image from "next/image";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CheckIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // In a real app, this would come from an auth context
 const currentUser = MOCK_USERS.admin;
+
+const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const formSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
   description: z.string().min(10, { message: "Description is required." }),
   price: z.coerce.number().min(0, { message: "Price must be a positive number." }),
-  schedule: z.string().min(1, { message: "Schedule is required." }),
-  imageUrl: z.string().url({ message: "Please enter a valid URL." }),
+  days: z.array(z.string()).min(1, "At least one day must be selected."),
+  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)."),
+  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)."),
+  imageUrl: z.string().min(1, { message: "An image is required." }),
   imageHint: z.string().optional(),
 });
 
@@ -49,20 +58,41 @@ export default function CoursesPage() {
     const [courses, setCourses] = useState<Course[]>(MOCK_COURSES);
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
     });
 
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result as string;
+                setImagePreview(result);
+                form.setValue('imageUrl', result, { shouldValidate: true });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const removeImage = () => {
+        setImagePreview(null);
+        form.setValue('imageUrl', '', { shouldValidate: true });
+    };
+
     const handleOpenCreateDialog = () => {
         setEditingCourse(null);
-        form.reset({ title: "", description: "", price: 0, schedule: "", imageUrl: "", imageHint: "" });
+        setImagePreview(null);
+        form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "" });
         setIsFormDialogOpen(true);
     };
 
     const handleOpenEditDialog = (course: Course) => {
         setEditingCourse(course);
+        setImagePreview(course.imageUrl);
         form.reset(course);
         setIsFormDialogOpen(true);
     };
@@ -101,6 +131,7 @@ export default function CoursesPage() {
                 }
                 setIsFormDialogOpen(false);
                 setEditingCourse(null);
+                setImagePreview(null);
                 form.reset();
             }, 500);
         })()
@@ -119,7 +150,7 @@ export default function CoursesPage() {
             </div>
             <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {courses.map((course) => (
-                    <CourseCard key={course.id} course={course} />
+                    <CourseCard key={course.id} course={course} userRole={currentUser.role as UserRole}/>
                 ))}
             </div>
         </div>
@@ -154,7 +185,7 @@ export default function CoursesPage() {
                             </DialogDescription>
                         </DialogHeader>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                             <FormField control={form.control} name="title" render={({ field }) => (
                                 <FormItem className="md:col-span-2">
                                     <FormLabel>Title</FormLabel>
@@ -176,20 +207,103 @@ export default function CoursesPage() {
                                     <FormMessage />
                                 </FormItem>
                             )}/>
-                             <FormField control={form.control} name="schedule" render={({ field }) => (
+                             <FormField
+                                control={form.control}
+                                name="days"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Days</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className={cn(
+                                                "w-full justify-between",
+                                                !field.value?.length && "text-muted-foreground"
+                                            )}
+                                            >
+                                            {field.value?.length > 0
+                                                ? field.value.join(", ")
+                                                : "Select days"}
+                                            <Clock className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[200px] p-0">
+                                            <div className="p-2 space-y-1">
+                                            {weekDays.map((day) => (
+                                                <div key={day} className="flex items-center gap-2">
+                                                    <Checkbox
+                                                        id={`day-${day}`}
+                                                        checked={field.value?.includes(day)}
+                                                        onCheckedChange={(checked) => {
+                                                            const currentDays = field.value || [];
+                                                            if (checked) {
+                                                                field.onChange([...currentDays, day]);
+                                                            } else {
+                                                                field.onChange(currentDays.filter((d) => d !== day));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label htmlFor={`day-${day}`} className="text-sm font-medium">{day}</label>
+                                                </div>
+                                            ))}
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                             <FormField control={form.control} name="startTime" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Schedule</FormLabel>
-                                    <FormControl><Input placeholder="Mon, Wed | 9-11 AM" {...field} /></FormControl>
+                                    <FormLabel>Start Time</FormLabel>
+                                    <FormControl><Input type="time" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}/>
-                            <FormField control={form.control} name="imageUrl" render={({ field }) => (
-                                <FormItem className="md:col-span-2">
-                                    <FormLabel>Image URL</FormLabel>
-                                    <FormControl><Input type="url" placeholder="https://picsum.photos/seed/..." {...field} /></FormControl>
+                             <FormField control={form.control} name="endTime" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>End Time</FormLabel>
+                                    <FormControl><Input type="time" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}/>
+                            <div className="md:col-span-2 space-y-2">
+                                <FormLabel>Course Image</FormLabel>
+                                 <FormMessage {...form.getFieldState("imageUrl")}/>
+                                {imagePreview ? (
+                                    <div className="relative group aspect-video">
+                                        <Image src={imagePreview} alt="Image preview" fill className="object-cover rounded-md" />
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="icon"
+                                            className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={removeImage}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                     <div className="relative">
+                                        <Button type="button" variant="outline" asChild className="cursor-pointer w-full">
+                                            <div>
+                                                <FileUp className="mr-2 h-4 w-4" />
+                                                Upload Image
+                                            </div>
+                                        </Button>
+                                        <Input id="file-upload" type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/*"/>
+                                    </div>
+                                )}
+                                <FormField control={form.control} name="imageUrl" render={({ field }) => (
+                                    <FormItem className="hidden">
+                                        <FormControl><Input {...field} /></FormControl>
+                                    </FormItem>
+                                )}/>
+                            </div>
                              <FormField control={form.control} name="imageHint" render={({ field }) => (
                                 <FormItem className="md:col-span-2">
                                     <FormLabel>Image Hint</FormLabel>
@@ -214,7 +328,7 @@ export default function CoursesPage() {
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => (
                 <div key={course.id} className="relative group">
-                    <CourseCard course={course} />
+                    <CourseCard course={course} userRole={currentUser.role as UserRole} />
                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
