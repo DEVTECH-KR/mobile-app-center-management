@@ -31,24 +31,32 @@ const profileFormSchema = z.object({
 export default function ProfilePage() {
     // In a real app, you would fetch the user or get it from a context.
     // Here we're finding it in the mock data and managing its state locally.
-    const [user, setUser] = useState<User>(allUsers[currentUserId]);
+    const [user, setUser] = useState<User | undefined>(allUsers[currentUserId]);
 
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
         defaultValues: {
-            name: user.name,
-            email: user.email,
-            avatarUrl: user.avatarUrl || '',
+            name: user?.name || '',
+            email: user?.email || '',
+            avatarUrl: user?.avatarUrl || '',
         },
     });
+
+    if (!user) {
+        return (
+             <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">User not found.</p>
+            </div>
+        )
+    }
 
     function onSubmit(values: z.infer<typeof profileFormSchema>) {
         form.handleSubmit(() => {
             // Simulate an API call to update the user profile
              setTimeout(() => {
-                const updatedUser = { ...user, name: values.name, avatarUrl: values.avatarUrl };
+                const updatedUser = { ...user, name: values.name, avatarUrl: values.avatarUrl } as User;
                 
                 // Update the user in our mock state
                 setUser(updatedUser);
