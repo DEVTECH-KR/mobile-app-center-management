@@ -71,20 +71,20 @@ export const MOCK_COURSES: Course[] = [
     endTime: '20:00',
     imageUrl: 'https://picsum.photos/seed/2/600/400',
     imageHint: 'code screen',
-    levels: ['Fundamentals', 'Advanced React'],
+    levels: ['Beginner', 'Intermediate', 'Advanced'],
   },
   {
     id: 'course-3',
     title: 'English & French',
     description: 'Improve your language proficiency with our comprehensive English and French courses.',
     price: 40000,
-    teacherIds: ['user-teacher3'],
+    teacherIds: [],
     days: ['Sat'],
     startTime: '10:00',
     endTime: '13:00',
     imageUrl: 'https://picsum.photos/seed/3/600/400',
     imageHint: 'books library',
-    levels: ['First Level', 'Second Level'],
+    levels: ['All levels'],
   },
 ];
 

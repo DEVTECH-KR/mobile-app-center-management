@@ -18,10 +18,10 @@ export type Course = {
   teacherIds: string[];
   days: string[];
   startTime: string;
-  endTime: string;
+endTime: string;
   imageUrl: string;
   imageHint: string;
-  levels?: string[]; // e.g., ['Beginner', 'Intermediate', 'Advanced']
+  levels: string[]; // e.g., ['Beginner', 'Intermediate', 'Advanced']
 };
 
 export type Class = {

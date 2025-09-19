@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { MOCK_COURSES, MOCK_USERS } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, BookOpen, Clock, Tag, User } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock, Tag, User, Star } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +68,7 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
-                            <Tag className="h-5 w-5 text-muted-foreground" />
+                            <Star className="h-5 w-5 text-muted-foreground" />
                             <div>
                                 <p className="font-medium">Levels</p>
                                 <div className="flex flex-wrap gap-1 mt-1">

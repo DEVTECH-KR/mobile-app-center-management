@@ -6,7 +6,7 @@ import { useState } from "react";
 import { CourseCard } from "@/components/dashboard/course-card";
 import { MOCK_COURSES, MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
-import { Edit, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X, Clock, User, Users } from "lucide-react";
+import { Edit, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X, Clock, User, Users, Star } from "lucide-react";
 import type { Course, User as UserType, UserRole } from "@/lib/types";
 import {
   Dialog,
@@ -45,6 +45,7 @@ const currentUser = MOCK_USERS.admin;
 const allTeachers = Object.values(MOCK_USERS).filter(u => u.role === 'teacher');
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const courseLevels = ["Beginner", "Intermediate", "Advanced", "All levels"];
 
 const formSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -57,6 +58,7 @@ const formSchema = z.object({
   imageHint: z.string().optional(),
   teacherIds: z.array(z.string()).optional(),
   otherInstructorName: z.string().optional(),
+  levels: z.array(z.string()).min(1, "At least one level must be selected."),
 });
 
 
@@ -72,6 +74,7 @@ export default function CoursesPage() {
         resolver: zodResolver(formSchema),
         defaultValues: {
             teacherIds: [],
+            levels: [],
         }
     });
 
@@ -97,7 +100,7 @@ export default function CoursesPage() {
         setEditingCourse(null);
         setImagePreview(null);
         setShowOtherInstructorField(false);
-        form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "", teacherIds: [], otherInstructorName: "" });
+        form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "", teacherIds: [], otherInstructorName: "", levels: [] });
         setIsFormDialogOpen(true);
     };
 
@@ -301,6 +304,51 @@ export default function CoursesPage() {
                             )}/>
                             <FormField
                                 control={form.control}
+                                name="levels"
+                                render={() => (
+                                    <FormItem className="md:col-span-2">
+                                    <FormLabel>Levels</FormLabel>
+                                    <div className="grid grid-cols-2 gap-2">
+                                    {courseLevels.map((level) => (
+                                        <FormField
+                                        key={level}
+                                        control={form.control}
+                                        name="levels"
+                                        render={({ field }) => {
+                                            return (
+                                            <FormItem
+                                                key={level}
+                                                className="flex flex-row items-start space-x-3 space-y-0"
+                                            >
+                                                <FormControl>
+                                                <Checkbox
+                                                    checked={field.value?.includes(level)}
+                                                    onCheckedChange={(checked) => {
+                                                    return checked
+                                                        ? field.onChange([...field.value, level])
+                                                        : field.onChange(
+                                                            field.value?.filter(
+                                                            (value) => value !== level
+                                                            )
+                                                        )
+                                                    }}
+                                                />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">
+                                                {level}
+                                                </FormLabel>
+                                            </FormItem>
+                                            )
+                                        }}
+                                        />
+                                    ))}
+                                    </div>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
                                 name="teacherIds"
                                 render={({ field }) => (
                                     <FormItem className="md:col-span-2">
@@ -489,5 +537,3 @@ export default function CoursesPage() {
     </div>
   );
 }
-
-    
