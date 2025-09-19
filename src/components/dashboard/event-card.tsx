@@ -1,0 +1,68 @@
+import Image from "next/image";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import type { Event, UserRole } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Edit, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { MoreVertical } from "lucide-react";
+
+export function EventCard({ event, userRole }: { event: Event, userRole: UserRole }) {
+  const eventDate = new Date(event.date);
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="relative">
+        <Image
+          src={event.imageUrl}
+          alt={event.title}
+          width={600}
+          height={400}
+          className="aspect-[3/2] w-full object-cover"
+          data-ai-hint={event.imageHint}
+        />
+        {userRole === 'admin' && (
+          <div className="absolute top-2 right-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full bg-background/70 hover:bg-background">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+      </div>
+      <CardHeader>
+        <CardTitle className="font-headline text-xl">{event.title}</CardTitle>
+        <div className="flex items-center text-sm text-muted-foreground gap-2">
+            <Calendar className="h-4 w-4" />
+            <span>{format(eventDate, "MMMM d, yyyy")}</span>
+            {event.isPast && <Badge variant="outline">Past Event</Badge>}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <CardDescription>{event.description}</CardDescription>
+      </CardContent>
+      <CardFooter>
+        <Button variant="outline" className="w-full">View Details</Button>
+      </CardFooter>
+    </Card>
+  );
+}

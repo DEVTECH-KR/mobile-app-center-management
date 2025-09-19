@@ -1,3 +1,46 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "course-office",
+      "description": "A modern office workspace setup.",
+      "imageUrl": "https://picsum.photos/seed/1/600/400",
+      "imageHint": "computer desk"
+    },
+    {
+      "id": "course-programming",
+      "description": "Screen with programming code.",
+      "imageUrl": "https://picsum.photos/seed/2/600/400",
+      "imageHint": "code screen"
+    },
+    {
+      "id": "course-languages",
+      "description": "A collection of books in a library.",
+      "imageUrl": "https://picsum.photos/seed/3/600/400",
+      "imageHint": "books library"
+    },
+    {
+      "id": "event-conference",
+      "description": "A speaker giving a presentation at a conference.",
+      "imageUrl": "https://picsum.photos/seed/4/600/400",
+      "imageHint": "conference presentation"
+    },
+    {
+      "id": "event-workshop",
+      "description": "People collaborating in a workshop.",
+      "imageUrl": "https://picsum.photos/seed/5/600/400",
+      "imageHint": "community gathering"
+    },
+    {
+      "id": "user-avatar-1",
+      "description": "Avatar for a user.",
+      "imageUrl": "https://picsum.photos/seed/101/100/100",
+      "imageHint": "person portrait"
+    },
+     {
+      "id": "user-avatar-2",
+      "description": "Avatar for another user.",
+      "imageUrl": "https://picsum.photos/seed/102/100/100",
+      "imageHint": "woman portrait"
+    }
+  ]
 }

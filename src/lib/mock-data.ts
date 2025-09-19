@@ -1,0 +1,114 @@
+import { User, Course, PaymentDetails, Event, Document, UserRole } from './types';
+
+export const MOCK_USERS: { [key: string]: User } = {
+  student: {
+    id: 'user-1',
+    name: 'Alex Doe',
+    email: 'student@ffbf.com',
+    role: 'student',
+    avatarUrl: 'https://picsum.photos/seed/101/100/100',
+    enrolledCourseIds: ['course-1', 'course-2'],
+  },
+  admin: {
+    id: 'user-admin',
+    name: 'Admin Director',
+    email: 'admin@ffbf.com',
+    role: 'admin',
+    avatarUrl: 'https://picsum.photos/seed/102/100/100',
+  },
+};
+
+export const MOCK_COURSES: Course[] = [
+  {
+    id: 'course-1',
+    title: 'Office (Bureautics)',
+    description: 'Master the full Microsoft Office suite, from Word and Excel to PowerPoint and Outlook.',
+    price: 50000,
+    teacherIds: ['teacher-1'],
+    schedule: 'Mon, Wed, Fri | 9:00 - 11:00 AM',
+    imageUrl: 'https://picsum.photos/seed/1/600/400',
+    imageHint: 'computer desk',
+  },
+  {
+    id: 'course-2',
+    title: 'Programming',
+    description: 'Learn the fundamentals of web development with HTML, CSS, JavaScript, and React.',
+    price: 100000,
+    teacherIds: ['teacher-2'],
+    schedule: 'Tue, Thu | 6:00 - 8:00 PM',
+    imageUrl: 'https://picsum.photos/seed/2/600/400',
+    imageHint: 'code screen',
+  },
+  {
+    id: 'course-3',
+    title: 'English & French',
+    description: 'Improve your language proficiency with our comprehensive English and French courses.',
+    price: 40000,
+    teacherIds: ['teacher-3'],
+    schedule: 'Sat | 10:00 AM - 1:00 PM',
+    imageUrl: 'https://picsum.photos/seed/3/600/400',
+    imageHint: 'books library',
+  },
+];
+
+const officeMinerval = MOCK_COURSES.find(c => c.id === 'course-1')?.price || 0;
+const installmentAmount = officeMinerval / 4;
+
+export const MOCK_PAYMENTS: PaymentDetails = {
+  userId: 'user-1',
+  courseId: 'course-1',
+  registrationFee: 20000,
+  installments: [
+    { name: 'Registration Fee', amount: 20000, status: 'Paid', dueDate: '2024-01-15' },
+    { name: 'Installment 1', amount: installmentAmount, status: 'Paid', dueDate: '2024-01-15' },
+    { name: 'Installment 2', amount: installmentAmount, status: 'Paid', dueDate: '2024-02-15' },
+    { name: 'Installment 3', amount: installmentAmount, status: 'Unpaid', dueDate: '2024-03-15' },
+    { name: 'Installment 4', amount: installmentAmount, status: 'Unpaid', dueDate: '2024-04-15' },
+  ],
+  totalPaid: 20000 + installmentAmount * 2,
+  totalDue: 20000 + officeMinerval,
+};
+
+export const MOCK_EVENTS: Event[] = [
+  {
+    id: 'event-1',
+    title: 'Tech Conference 2024',
+    description: 'Join us for the annual tech conference featuring guest speakers from the industry.',
+    date: '2024-10-25',
+    isPast: false,
+    imageUrl: 'https://picsum.photos/seed/4/600/400',
+    imageHint: 'conference presentation',
+  },
+  {
+    id: 'event-2',
+    title: 'Community Workshop',
+    description: 'A hands-on workshop on modern web development techniques. Limited seats available!',
+    date: '2024-11-15',
+    isPast: false,
+    imageUrl: 'https://picsum.photos/seed/5/600/400',
+    imageHint: 'community gathering',
+  },
+  {
+    id: 'event-3',
+    title: 'Graduation Ceremony 2023',
+    description: 'Celebrating the achievements of our 2023 graduates.',
+    date: '2023-12-20',
+    isPast: true,
+    imageUrl: 'https://picsum.photos/seed/6/600/400',
+    imageHint: 'graduation ceremony',
+  },
+];
+
+export const MOCK_DOCUMENTS: Document[] = [
+    { id: 'doc-1', courseId: 'course-1', title: 'Course Syllabus', type: 'Syllabus', fileUrl: '#', uploadedAt: '2024-01-10' },
+    { id: 'doc-2', courseId: 'course-1', title: 'Excel Basics', type: 'Material', fileUrl: '#', uploadedAt: '2024-01-20' },
+    { id: 'doc-3', courseId: 'course-2', title: 'Intro to JavaScript', type: 'Material', fileUrl: '#', uploadedAt: '2024-02-01' },
+    { id: 'doc-4', courseId: 'course-2', title: 'React Hooks Guide', type: 'Material', fileUrl: '#', uploadedAt: '2024-03-05' },
+     { id: 'doc-5', courseId: 'course-1', title: 'Advanced Formulas Assignment', type: 'Assignment', fileUrl: '#', uploadedAt: '2024-03-10' },
+];
+
+export const MOCK_CENTER_INFO = {
+  mission: 'To empower individuals with practical skills and knowledge, fostering personal and professional growth for a brighter future. We are committed to providing high-quality training in a supportive and dynamic learning environment.',
+  schedule: 'Open Monday to Saturday, from 8:00 AM to 9:00 PM.',
+  registrationFee: 20000
+};

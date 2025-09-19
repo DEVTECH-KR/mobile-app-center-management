@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        body: ['"PT Sans"', 'sans-serif'],
+        headline: ['Poppins', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -65,6 +65,10 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
+        dot: {
+          'slate-400': '#94a3b8',
+          'slate-800': '#1e293b',
+        }
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -93,7 +97,26 @@ export default {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
+      backgroundImage: {
+        'dot-slate-400': 'radial-gradient(circle at 1px 1px, #94a3b8 1px, transparent 0)',
+        'dot-slate-800': 'radial-gradient(circle at 1px 1px, #1e293b 1px, transparent 0)',
+      },
+      backgroundSize: {
+        'dot': '0.5rem 0.5rem',
+      }
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [require('tailwindcss-animate'), function ({ matchUtilities, theme }) {
+      matchUtilities(
+        {
+          'bg-dot': (value) => ({
+            '--dot-color': value,
+            'background-image': 'radial-gradient(circle at 1px 1px, var(--dot-color) 1px, transparent 0)',
+            'background-size': '0.5rem 0.5rem',
+          }),
+        },
+        { values: theme('colors') }
+      )
+    },
+  ],
 } satisfies Config;
