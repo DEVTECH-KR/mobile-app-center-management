@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -63,6 +63,7 @@ export default function UsersPage() {
     const [users, setUsers] = useState<User[]>(allInitialUsers);
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -125,6 +126,15 @@ export default function UsersPage() {
             }, 500);
         })()
     }
+    
+    const filteredUsers = useMemo(() => {
+        if (!searchTerm) return users;
+        const lowercasedTerm = searchTerm.toLowerCase();
+        return users.filter(user =>
+            user.name.toLowerCase().includes(lowercasedTerm) ||
+            user.email.toLowerCase().includes(lowercasedTerm)
+        );
+    }, [users, searchTerm]);
 
 
     if (currentUser.role !== 'admin') {
@@ -219,7 +229,12 @@ export default function UsersPage() {
       <div className="mb-4 flex items-center justify-between">
           <div className="relative w-full max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
-              <Input placeholder="Filter by name or email..." className="pl-9"/>
+              <Input
+                placeholder="Filter by name or email..."
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
           </div>
       </div>
       
@@ -234,7 +249,14 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => {
+            {filteredUsers.length === 0 && (
+                <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                        No users found.
+                    </TableCell>
+                </TableRow>
+            )}
+            {filteredUsers.map((user) => {
               const assignedClasses = user.classIds?.map(id => MOCK_CLASSES.find(c => c.id === id)).filter(Boolean) || [];
               const assignedClassNames = assignedClasses.map(c => {
                   const course = MOCK_COURSES.find(co => co.id === c!.courseId);
