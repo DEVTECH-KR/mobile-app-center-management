@@ -25,7 +25,7 @@ const allUsers = MOCK_USERS;
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email(), // Will be read-only
-  avatarUrl: z.string().url().optional(),
+  avatarUrl: z.string().url().optional().nullable(),
   gender: z.enum(["male", "female", "other"]).optional(),
   nationality: z.string().optional(),
   otherNationality: z.string().optional(),
@@ -64,7 +64,18 @@ export default function ProfilePage() {
 
     const form = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
-        values: user // Using `values` will keep the form updated when `user` state changes
+        values: {
+            name: user?.name ?? '',
+            email: user?.email ?? '',
+            avatarUrl: user?.avatarUrl ?? '',
+            gender: user?.gender,
+            nationality: user?.nationality,
+            otherNationality: user?.otherNationality,
+            educationLevel: user?.educationLevel,
+            university: user?.university,
+            address: user?.address,
+            phone: user?.phone,
+        }
     });
     
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
@@ -93,15 +104,21 @@ export default function ProfilePage() {
 
     const removeImage = () => {
         setImagePreview(null);
-        form.setValue('avatarUrl', '', { shouldValidate: true });
+        form.setValue('avatarUrl', null, { shouldValidate: true });
     };
 
     function onProfileSubmit(values: z.infer<typeof profileFormSchema>) {
         // Simulate an API call to update the user profile
          setTimeout(() => {
+            if (!user) return;
             const updatedUser = { ...user, ...values } as User;
             setUser(updatedUser);
-            MOCK_USERS[currentUserKey] = updatedUser;
+            // This is a mock update, in a real app this would be a DB call
+            const userKey = Object.keys(MOCK_USERS).find(key => MOCK_USERS[key].id === user.id);
+            if(userKey) {
+                MOCK_USERS[userKey] = updatedUser;
+            }
+
 
             toast({
                 title: "Profile Updated",
@@ -179,7 +196,7 @@ export default function ProfilePage() {
                                 </div>
                                 <FormField control={form.control} name="avatarUrl" render={({ field }) => (
                                     <FormItem className="hidden">
-                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                                     </FormItem>
                                 )}/>
                             </div>
@@ -205,7 +222,7 @@ export default function ProfilePage() {
                                 <FormField control={form.control} name="phone" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Phone Number</FormLabel>
-                                        <FormControl><Input type="tel" {...field} /></FormControl>
+                                        <FormControl><Input type="tel" {...field} value={field.value ?? ''} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
@@ -213,7 +230,7 @@ export default function ProfilePage() {
                                  <FormField control={form.control} name="address" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Full Address</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
@@ -249,7 +266,7 @@ export default function ProfilePage() {
                                     <FormField control={form.control} name="otherNationality" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Please Specify Nationality</FormLabel>
-                                            <FormControl><Input {...field} /></FormControl>
+                                            <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}/>
@@ -275,7 +292,7 @@ export default function ProfilePage() {
                                 <FormField control={form.control} name="university" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Name of University (Optional)</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
@@ -335,3 +352,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
