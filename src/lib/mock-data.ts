@@ -1,4 +1,4 @@
-import { User, Course, PaymentDetails, Event, Document, UserRole } from './types';
+import { User, Course, PaymentDetails, Event, Document, UserRole, Partner } from './types';
 
 export const MOCK_USERS: { [key: string]: User } = {
   student: {
@@ -73,7 +73,8 @@ export const MOCK_EVENTS: Event[] = [
   {
     id: 'event-1',
     title: 'Tech Conference 2024',
-    description: 'Join us for the annual tech conference featuring guest speakers from the industry.',
+    description: 'Join us for the annual tech conference featuring guest speakers from the industry. This is a great opportunity to network with professionals and learn about the latest trends in technology.',
+    details: 'The conference will be held at the National Convention Center. Topics include AI, blockchain, and quantum computing. Breakfast and lunch will be provided. Please RSVP by October 1st.',
     date: '2024-10-25',
     isPast: false,
     imageUrl: 'https://picsum.photos/seed/4/600/400',
@@ -83,6 +84,7 @@ export const MOCK_EVENTS: Event[] = [
     id: 'event-2',
     title: 'Community Workshop',
     description: 'A hands-on workshop on modern web development techniques. Limited seats available!',
+    details: 'This workshop is perfect for beginners and intermediate developers looking to sharpen their skills. We will cover React, Next.js, and Tailwind CSS. Bring your own laptop. Snacks and coffee will be available.',
     date: '2024-11-15',
     isPast: false,
     imageUrl: 'https://picsum.photos/seed/5/600/400',
@@ -92,6 +94,7 @@ export const MOCK_EVENTS: Event[] = [
     id: 'event-3',
     title: 'Graduation Ceremony 2023',
     description: 'Celebrating the achievements of our 2023 graduates.',
+    details: 'A memorable day for our students, their families, and our staff. The ceremony was held at the Grand Theater and featured a keynote speech by a renowned academic. All graduates received their diplomas and special awards were given for outstanding performance.',
     date: '2023-12-20',
     isPast: true,
     imageUrl: 'https://picsum.photos/seed/6/600/400',
@@ -112,3 +115,10 @@ export const MOCK_CENTER_INFO = {
   schedule: 'Open Monday to Saturday, from 8:00 AM to 9:00 PM.',
   registrationFee: 20000
 };
+
+export const MOCK_PARTNERS: Partner[] = [
+  { name: 'Google', logoUrl: 'https://picsum.photos/seed/p1/100/100' },
+  { name: 'Microsoft', logoUrl: 'https://picsum.photos/seed/p2/100/100' },
+  { name: 'Coursera', logoUrl: 'https://picsum.photos/seed/p3/100/100' },
+  { name: 'Local Chamber of Commerce', logoUrl: 'https://picsum.photos/seed/p4/100/100' }
+]

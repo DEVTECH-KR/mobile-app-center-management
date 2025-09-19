@@ -1,6 +1,8 @@
 import { AppHeader } from "@/components/layout/app-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MOCK_PARTNERS } from "@/lib/mock-data";
 import { Building, Goal, History, Users } from "lucide-react";
+import Image from "next/image";
 
 const aboutSections = [
     {
@@ -17,11 +19,6 @@ const aboutSections = [
         title: 'Vision',
         icon: Building,
         content: 'Our vision is to be a beacon of learning and opportunity, recognized for our commitment to excellence, innovation, and community impact. We aspire to create a future where every individual has the chance to reach their full potential.'
-    },
-    {
-        title: 'Partners',
-        icon: Users,
-        content: 'We are proud to partner with local businesses, non-profits, and educational organizations to enhance our programs and provide our students with valuable real-world experiences and networking opportunities.'
     }
 ]
 
@@ -36,7 +33,7 @@ export default function AboutPage() {
                     <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">Learn about our journey, our values, and the people who make it all happen.</p>
                 </div>
 
-                <div className="grid gap-8 md:grid-cols-2">
+                <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
                     {aboutSections.map(section => (
                         <Card key={section.title}>
                             <CardHeader className="flex flex-row items-center gap-4">
@@ -48,6 +45,23 @@ export default function AboutPage() {
                             </CardContent>
                         </Card>
                     ))}
+                     <Card className="lg:col-span-3">
+                        <CardHeader className="flex flex-row items-center gap-4">
+                            <Users className="h-8 w-8 text-primary"/>
+                            <CardTitle className="font-headline text-2xl">Partners</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-muted-foreground mb-6">We are proud to partner with local businesses, non-profits, and educational organizations to enhance our programs and provide our students with valuable real-world experiences and networking opportunities.</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-8">
+                                {MOCK_PARTNERS.map(partner => (
+                                    <div key={partner.name} className="flex flex-col items-center justify-center gap-2">
+                                        <Image src={partner.logoUrl} alt={`${partner.name} logo`} width={80} height={80} className="object-contain" />
+                                        <p className="text-sm font-medium text-center">{partner.name}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </main>

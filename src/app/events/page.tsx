@@ -1,9 +1,7 @@
 import { EventCard } from "@/components/dashboard/event-card";
 import { AppHeader } from "@/components/layout/app-header";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MOCK_EVENTS, MOCK_USERS } from "@/lib/mock-data";
-import { Gift } from "lucide-react";
 
 // In a real app, this would come from an auth context, or be public
 const userRole = MOCK_USERS.student.role; 
@@ -20,10 +18,6 @@ export default function PublicEventsPage() {
                 <div className="text-center mb-12">
                     <h1 className="font-headline text-4xl font-extrabold tracking-tight sm:text-5xl">Center Events</h1>
                     <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">Stay updated with our latest events, workshops, and community gatherings.</p>
-                     <Button className="mt-6">
-                        <Gift className="mr-2 h-4 w-4"/>
-                        Contribute to an Event
-                    </Button>
                 </div>
 
                 <Tabs defaultValue="upcoming" className="w-full">

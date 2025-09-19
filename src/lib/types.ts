@@ -42,6 +42,7 @@ export type Event = {
   id: string;
   title: string;
   description: string;
+  details?: string;
   date: string;
   isPast: boolean;
   imageUrl: string;
@@ -56,3 +57,8 @@ export type Document = {
   type: "Syllabus" | "Material" | "Assignment" | "Evaluation";
   uploadedAt: string;
 };
+
+export type Partner = {
+    name: string;
+    logoUrl: string;
+}
