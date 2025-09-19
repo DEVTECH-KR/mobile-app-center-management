@@ -5,8 +5,8 @@ import { useState } from "react";
 import { CourseCard } from "@/components/dashboard/course-card";
 import { MOCK_COURSES, MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
-import { Edit, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X, Clock } from "lucide-react";
-import type { Course, UserRole } from "@/lib/types";
+import { Edit, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X, Clock, User, Users } from "lucide-react";
+import type { Course, User as UserType, UserRole } from "@/lib/types";
 import {
   Dialog,
   DialogContent,
@@ -36,9 +36,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 // In a real app, this would come from an auth context
 const currentUser = MOCK_USERS.admin;
+const allTeachers = Object.values(MOCK_USERS).filter(u => u.role === 'teacher');
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -51,6 +54,7 @@ const formSchema = z.object({
   endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)."),
   imageUrl: z.string().min(1, { message: "An image is required." }),
   imageHint: z.string().optional(),
+  teacherIds: z.array(z.string()).optional(),
 });
 
 
@@ -63,6 +67,9 @@ export default function CoursesPage() {
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
+        defaultValues: {
+            teacherIds: [],
+        }
     });
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,7 +93,7 @@ export default function CoursesPage() {
     const handleOpenCreateDialog = () => {
         setEditingCourse(null);
         setImagePreview(null);
-        form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "" });
+        form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "", teacherIds: [] });
         setIsFormDialogOpen(true);
     };
 
@@ -121,7 +128,7 @@ export default function CoursesPage() {
                     const newCourse: Course = {
                         id: `course-${Date.now()}`,
                         ...values,
-                        teacherIds: [], // Default value for new course
+                        teacherIds: values.teacherIds || [],
                     }
                     setCourses(prev => [newCourse, ...prev]);
                     toast({
@@ -271,6 +278,71 @@ export default function CoursesPage() {
                                     <FormMessage />
                                 </FormItem>
                             )}/>
+                            <FormField
+                                control={form.control}
+                                name="teacherIds"
+                                render={({ field }) => (
+                                    <FormItem className="md:col-span-2">
+                                    <FormLabel>Instructors</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                className="w-full justify-between"
+                                            >
+                                                <span className="truncate">
+                                                {field.value?.length > 0
+                                                    ? `${field.value.length} selected`
+                                                    : "Select instructors"}
+                                                </span>
+                                                <Users className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Search instructors..." />
+                                                <CommandEmpty>No instructor found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandList>
+                                                        {allTeachers.map((teacher) => (
+                                                            <CommandItem
+                                                            value={teacher.name}
+                                                            key={teacher.id}
+                                                            onSelect={() => {
+                                                                const currentIds = field.value || [];
+                                                                const isSelected = currentIds.includes(teacher.id);
+                                                                if (isSelected) {
+                                                                    field.onChange(currentIds.filter((id) => id !== teacher.id));
+                                                                } else {
+                                                                    field.onChange([...currentIds, teacher.id]);
+                                                                }
+                                                            }}
+                                                            >
+                                                            <CheckIcon
+                                                                className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                field.value?.includes(teacher.id) ? "opacity-100" : "opacity-0"
+                                                                )}
+                                                            />
+                                                            <Avatar className="h-6 w-6 mr-2">
+                                                                <AvatarImage src={teacher.avatarUrl} alt={teacher.name} />
+                                                                <AvatarFallback>{teacher.name.charAt(0)}</AvatarFallback>
+                                                            </Avatar>
+                                                            {teacher.name}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandList>
+                                                </CommandGroup>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                             <div className="md:col-span-2 space-y-2">
                                 <FormLabel>Course Image</FormLabel>
                                  <FormMessage {...form.getFieldState("imageUrl")}/>
