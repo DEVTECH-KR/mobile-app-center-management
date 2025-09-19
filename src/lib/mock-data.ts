@@ -2,6 +2,9 @@
 
 import { User, Course, PaymentDetails, Event, Document, UserRole, Partner, Class, CenterInfo, EnrollmentRequest } from './types';
 
+// This file is becoming deprecated as we move to Firestore.
+// It's kept for now to avoid breaking pages that haven't been migrated yet.
+
 export const MOCK_USERS: { [key: string]: User } = {
   student: {
     id: 'user-1',
@@ -205,7 +208,6 @@ export const MOCK_PARTNERS: Partner[] = [
 ];
 
 export const MOCK_ENROLLMENT_REQUESTS: EnrollmentRequest[] = [
-    { id: 'req-1', userId: 'user-2', courseId: 'course-3', requestDate: new Date().toISOString(), status: 'pending' },
-    { id: 'req-2', userId: 'user-1', courseId: 'course-2', requestDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), status: 'pending' },
+    { id: 'req-1', userId: 'user-2', courseId: 'course-3', requestDate: new Date().toISOString(), status: 'pending', userName: 'Jane Smith', userEmail: 'jane@example.com', courseTitle: 'English & French' },
+    { id: 'req-2', userId: 'user-1', courseId: 'course-2', requestDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), status: 'pending', userName: 'Alex Doe', userEmail: 'student@ffbf.com', courseTitle: 'Programming' },
 ];
-    

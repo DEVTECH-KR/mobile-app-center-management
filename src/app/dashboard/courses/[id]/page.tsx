@@ -1,54 +1,94 @@
 
 'use client';
 import { Button } from "@/components/ui/button";
-import { MOCK_COURSES, MOCK_USERS, MOCK_CENTER_INFO, MOCK_ENROLLMENT_REQUESTS } from "@/lib/mock-data";
+import { MOCK_CENTER_INFO, MOCK_ENROLLMENT_REQUESTS, MOCK_COURSES as MOCK_COURSES_STATIC } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, BookOpen, Clock, Tag, User, Star, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { EnrollmentRequest } from "@/lib/types";
-
-// In a real app, this would come from an auth context
-const currentUser = MOCK_USERS.admin;
-
+import type { EnrollmentRequest, Course, User as UserType } from "@/lib/types";
+import { useAuth } from "@/context/auth-context";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 
 export default function CourseDetailsPage({ params }: { params: { id: string } }) {
+  const { userProfile, loading } = useAuth();
+  const [course, setCourse] = useState<Course | null>(null);
+  const [teachers, setTeachers] = useState<UserType[]>([]);
+  const [pageLoading, setPageLoading] = useState(true);
+  
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRequestSubmitted, setIsRequestSubmitted] = useState(false);
   const { toast } = useToast();
 
-  const course = MOCK_COURSES.find((c) => c.id === params.id);
+  useEffect(() => {
+    if (!params.id) return;
+    const fetchCourse = async () => {
+        setPageLoading(true);
+        try {
+            const courseDoc = await getDoc(doc(db, "courses", params.id));
+            if (courseDoc.exists()) {
+                const courseData = { id: courseDoc.id, ...courseDoc.data() } as Course;
+                setCourse(courseData);
+
+                if (courseData.teacherIds && courseData.teacherIds.length > 0) {
+                     const usersCollection = collection(db, "users");
+                     const usersSnapshot = await getDocs(usersCollection);
+                     const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserType));
+                     setTeachers(usersList.filter(u => u.role === 'teacher' && courseData.teacherIds.includes(u.id)));
+                }
+
+            } else {
+                setCourse(null);
+            }
+        } catch (error) {
+            console.error("Error fetching course:", error);
+        } finally {
+            setPageLoading(false);
+        }
+    };
+    fetchCourse();
+  }, [params.id]);
   
+  if (pageLoading || loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (!course) {
     notFound();
   }
 
-  // Check if student is already enrolled or has a pending request
-  const isEnrolled = currentUser.enrolledCourseIds?.includes(course.id);
-  const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === currentUser.id && req.courseId === course.id && req.status === 'pending');
+  const isEnrolled = userProfile?.enrolledCourseIds?.includes(course.id!);
+  const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === userProfile?.id && req.courseId === course.id && req.status === 'pending');
   const canEnroll = !isEnrolled && !hasPendingRequest && !isRequestSubmitted;
 
 
   const handleEnrollmentRequest = () => {
+    if (!userProfile) return;
     setIsSubmitting(true);
     // Simulate an API call
     setTimeout(() => {
-      // In a real app, you would create a new enrollment request record in the database.
       const newRequest: EnrollmentRequest = {
         id: `req-${Date.now()}`,
-        userId: currentUser.id,
-        courseId: course.id,
+        userId: userProfile.id,
+        courseId: course.id!,
         requestDate: new Date().toISOString(),
         status: 'pending',
+        userName: userProfile.name,
+        userEmail: userProfile.email,
+        courseTitle: course.title,
       };
       MOCK_ENROLLMENT_REQUESTS.push(newRequest);
-      currentUser.enrollmentRequestIds = [...(currentUser.enrollmentRequestIds || []), newRequest.id];
 
       setIsSubmitting(false);
       setShowConfirmDialog(false);
@@ -60,7 +100,6 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
     }, 1000);
   }
 
-  const teachers = MOCK_USERS ? Object.values(MOCK_USERS).filter(u => u.role === 'teacher' && course.teacherIds.includes(u.id)) : [];
   const schedule = `${course.days.join(', ')} | ${course.startTime} - ${course.endTime}`;
 
   const currencyFormatter = new Intl.NumberFormat("en-US", {

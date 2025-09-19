@@ -117,4 +117,3 @@ export type EnrollmentRequest = {
     userEmail: string; // Denormalized for easy display
     courseTitle: string; // Denormalized for easy display
 }
-    

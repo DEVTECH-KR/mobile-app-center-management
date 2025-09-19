@@ -23,14 +23,10 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/context/auth-context";
 
 
-// In a real app, this would come from an auth context
-const user = MOCK_USERS.admin;
 const allUsers = Object.values(MOCK_USERS);
-const managedCourses = user.role === 'teacher' ? MOCK_COURSES.filter(course => course.teacherIds?.includes(user.id)) : [];
-const enrolledCourses = user.role === 'student' ? MOCK_COURSES.filter(course => user.enrolledCourseIds?.includes(course.id)) : [];
-
 
 const formSchema = z.object({
   title: z.string().min(3, { message: "Title is required." }),
@@ -41,6 +37,7 @@ const formSchema = z.object({
 
 
 export default function DocumentsPage() {
+    const { userProfile, loading } = useAuth();
     const [documents, setDocuments] = useState<Document[]>(MOCK_DOCUMENTS);
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const { toast } = useToast();
@@ -49,12 +46,24 @@ export default function DocumentsPage() {
         resolver: zodResolver(formSchema),
     });
 
-    const documentsByCourse = (user.role === 'student' ? enrolledCourses : managedCourses).map(course => ({
+    if (loading || !userProfile) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+    
+    const managedCourses = userProfile.role === 'teacher' ? MOCK_COURSES.filter(course => course.teacherIds?.includes(userProfile.id)) : [];
+    const enrolledCourses = userProfile.role === 'student' ? MOCK_COURSES.filter(course => userProfile.enrolledCourseIds?.includes(course.id)) : [];
+
+    const documentsByCourse = (userProfile.role === 'student' ? enrolledCourses : managedCourses).map(course => ({
         ...course,
         documents: documents.filter(doc => doc.courseId === course.id)
     }));
     
     function onSubmit(values: z.infer<typeof formSchema>) {
+        if (!userProfile) return;
         form.handleSubmit(() => {
             // Simulate API call
             setTimeout(() => {
@@ -63,7 +72,7 @@ export default function DocumentsPage() {
                     ...values,
                     type: values.type as "Syllabus" | "Material" | "Assignment" | "Evaluation",
                     uploadedAt: new Date().toISOString(),
-                    uploaderId: user.id
+                    uploaderId: userProfile.id
                 }
                 setDocuments(prev => [newDocument, ...prev]);
                 toast({
@@ -86,10 +95,10 @@ export default function DocumentsPage() {
             Course Documents
             </h2>
             <p className="text-muted-foreground">
-                {user.role === 'student' ? 'Access your syllabus, materials, and assignments here.' : 'Manage and upload documents for your courses.'}
+                {userProfile.role === 'student' ? 'Access your syllabus, materials, and assignments here.' : 'Manage and upload documents for your courses.'}
             </p>
         </div>
-         {user.role === 'teacher' && (
+         {userProfile.role === 'teacher' && (
             <Button onClick={() => setIsFormDialogOpen(true)}>
                 <PlusCircle className="mr-2 h-4 w-4"/>
                 Upload Document
@@ -204,7 +213,7 @@ export default function DocumentsPage() {
                                                     <span>{uploader?.name || 'Unknown'}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{format(new Date(doc.uploadedAt), 'MMM d, yyyy')}</TableCell>
+                                            <TableCell>{format(new Date(doc.uploadedAt as string), 'MMM d, yyyy')}</TableCell>
                                             <TableCell className="text-right">
                                                 <Button variant="ghost" size="icon" asChild>
                                                     <a href={doc.fileUrl} download>
@@ -224,9 +233,12 @@ export default function DocumentsPage() {
                 </CardContent>
             </Card>
         ))}
+        {documentsByCourse.length === 0 && (
+            <div className="text-center py-10">
+                <p className="text-muted-foreground">You are not enrolled in any courses with documents.</p>
+            </div>
+        )}
       </div>
     </div>
   );
 }
-
-    

@@ -1,7 +1,6 @@
 
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_USERS } from "@/lib/mock-data";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
@@ -16,10 +15,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
-
-// In a real app, this would come from an auth context. For now, we simulate it.
-const currentUserKey = 'admin'; 
-const allUsers = MOCK_USERS;
+import { useAuth } from "@/context/auth-context";
+import { db } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
 
 
 const profileFormSchema = z.object({
@@ -49,35 +47,34 @@ const passwordFormSchema = z.object({
 
 
 export default function ProfilePage() {
-    const [user, setUser] = useState<User | undefined>(undefined);
+    const { user, userProfile, loading } = useAuth();
     const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-    useEffect(() => {
-        const currentUser = allUsers[currentUserKey];
-        if (currentUser) {
-            setUser(currentUser);
-            setImagePreview(currentUser.avatarUrl || null);
-        }
-    }, []);
 
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
-        values: user ? {
-            name: user.name,
-            email: user.email,
-            avatarUrl: user.avatarUrl ?? null,
-            gender: user.gender,
-            nationality: user.nationality,
-            otherNationality: user.otherNationality,
-            educationLevel: user.educationLevel,
-            university: user.university,
-            address: user.address,
-            phone: user.phone,
+        values: userProfile ? {
+            name: userProfile.name,
+            email: userProfile.email,
+            avatarUrl: userProfile.avatarUrl ?? null,
+            gender: userProfile.gender,
+            nationality: userProfile.nationality,
+            otherNationality: userProfile.otherNationality,
+            educationLevel: userProfile.educationLevel,
+            university: userProfile.university,
+            address: userProfile.address,
+            phone: userProfile.phone,
         } : {},
     });
     
+    useEffect(() => {
+        if (userProfile) {
+            form.reset(userProfile);
+            setImagePreview(userProfile.avatarUrl || null);
+        }
+    }, [userProfile, form]);
+
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
         defaultValues: {
@@ -107,31 +104,30 @@ export default function ProfilePage() {
         form.setValue('avatarUrl', null, { shouldValidate: true });
     };
 
-    function onProfileSubmit(values: z.infer<typeof profileFormSchema>) {
-        // Simulate an API call to update the user profile
-         setTimeout(() => {
-            if (!user) return;
-            const updatedUser = { ...user, ...values } as User;
-            setUser(updatedUser);
-            // This is a mock update, in a real app this would be a DB call
-            const userKey = Object.keys(MOCK_USERS).find(key => MOCK_USERS[key].id === user.id);
-            if(userKey) {
-                MOCK_USERS[userKey] = updatedUser;
-            }
-
-
+    async function onProfileSubmit(values: z.infer<typeof profileFormSchema>) {
+        if (!user || !userProfile) return;
+        try {
+            const updatedProfile = { ...userProfile, ...values };
+            await setDoc(doc(db, "users", user.uid), updatedProfile, { merge: true });
             toast({
                 title: "Profile Updated",
                 description: "Your profile information has been successfully saved.",
             });
             form.reset(values);
-        }, 500);
+        } catch (error) {
+             console.error("Error updating profile:", error);
+             toast({
+                title: "Error",
+                description: "Could not update your profile.",
+                variant: "destructive"
+            });
+        }
     }
     
      function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
         // Simulate an API call to change password
+        // In a real app, this would use Firebase Auth functions to re-authenticate and update password.
         setTimeout(() => {
-            // In a real app, you'd verify the current password on the backend
             console.log("Password change requested:", values);
             toast({
                 title: "Password Updated",
@@ -141,7 +137,7 @@ export default function ProfilePage() {
         }, 500);
     }
 
-    if (!user) {
+    if (loading || !userProfile) {
         return (
              <div className="flex items-center justify-center h-full">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -173,8 +169,8 @@ export default function ProfilePage() {
                                 <FormLabel>Profile Picture</FormLabel>
                                 <div className="flex items-center gap-4">
                                      <Avatar className="h-20 w-20">
-                                        <AvatarImage src={imagePreview || undefined} alt={user.name} />
-                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                        <AvatarImage src={imagePreview || undefined} alt={userProfile.name} />
+                                        <AvatarFallback>{userProfile.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1">
                                         {imagePreview ? (

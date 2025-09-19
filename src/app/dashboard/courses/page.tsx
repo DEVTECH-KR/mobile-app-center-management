@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CourseCard } from "@/components/dashboard/course-card";
-import { MOCK_COURSES, MOCK_USERS, MOCK_ENROLLMENT_REQUESTS } from "@/lib/mock-data";
+import { MOCK_ENROLLMENT_REQUESTS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Edit, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X, Clock, User, Users, Star } from "lucide-react";
 import type { Course, User as UserType } from "@/lib/types";
@@ -38,10 +38,9 @@ import { CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-
-// In a real app, this would come from an auth context
-const currentUser = MOCK_USERS.admin;
-const allTeachers = Object.values(MOCK_USERS).filter(u => u.role === 'teacher');
+import { useAuth } from "@/context/auth-context";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const courseLevels = ["Beginner", "Intermediate", "Advanced", "All levels"];
@@ -62,12 +61,38 @@ const formSchema = z.object({
 
 
 export default function CoursesPage() {
-    const [courses, setCourses] = useState<Course[]>(MOCK_COURSES);
+    const { userProfile, loading } = useAuth();
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [allTeachers, setAllTeachers] = useState<UserType[]>([]);
+    const [pageLoading, setPageLoading] = useState(true);
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [showOtherInstructorField, setShowOtherInstructorField] = useState(false);
     const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setPageLoading(true);
+            try {
+                const coursesCollection = collection(db, "courses");
+                const coursesSnapshot = await getDocs(coursesCollection);
+                const coursesList = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+                setCourses(coursesList);
+
+                const usersCollection = collection(db, "users");
+                const usersSnapshot = await getDocs(usersCollection);
+                const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserType));
+                setAllTeachers(usersList.filter(u => u.role === 'teacher'));
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                toast({ title: "Error", description: "Could not fetch data.", variant: "destructive" });
+            } finally {
+                setPageLoading(false);
+            }
+        };
+        fetchData();
+    }, [toast]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -106,7 +131,6 @@ export default function CoursesPage() {
     const handleOpenEditDialog = (course: Course) => {
         setEditingCourse(course);
         setImagePreview(course.imageUrl);
-        // A bit of a simplification: if there are teacher IDs not in the known list, we assume it was an 'other'
         const knownTeacherIds = allTeachers.map(t => t.id);
         const hasOther = course.teacherIds.some(id => !knownTeacherIds.includes(id));
         setShowOtherInstructorField(hasOther);
@@ -136,7 +160,6 @@ export default function CoursesPage() {
                 if (editingCourse) {
                     const updatedCourse = { ...editingCourse, ...values };
                         if (values.otherInstructorName) {
-                        // In a real app, you'd create a new teacher user here and get an ID
                         const newTeacherId = `user-other-${Date.now()}`;
                         updatedCourse.teacherIds = [...(updatedCourse.teacherIds || []), newTeacherId];
                     }
@@ -152,10 +175,8 @@ export default function CoursesPage() {
                         teacherIds: values.teacherIds || [],
                     }
                     if (values.otherInstructorName) {
-                        // In a real app, you'd create a new teacher user here and get an ID
                         const newTeacherId = `user-other-${Date.now()}`;
                         newCourse.teacherIds.push(newTeacherId);
-                        // You might also want to add this new teacher to a global state/mock data list
                     }
                     setCourses(prev => [newCourse, ...prev]);
                     toast({
@@ -172,7 +193,15 @@ export default function CoursesPage() {
         })();
     }
   
-  if (currentUser.role !== 'admin') {
+  if (loading || pageLoading || !userProfile) {
+     return (
+        <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      );
+  }
+  
+  if (userProfile.role !== 'admin') {
       return (
         <div className="space-y-6">
             <div>
@@ -185,14 +214,14 @@ export default function CoursesPage() {
             </div>
             <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {courses.map((course) => {
-                    const isEnrolled = currentUser.enrolledCourseIds?.includes(course.id);
-                    const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === currentUser.id && req.courseId === course.id && req.status === 'pending');
+                    const isEnrolled = userProfile.enrolledCourseIds?.includes(course.id!);
+                    const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === userProfile.id && req.courseId === course.id && req.status === 'pending');
                     
                     return (
                         <CourseCard 
                             key={course.id} 
                             course={course} 
-                            userRole={currentUser.role}
+                            userRole={userProfile.role}
                             isEnrolled={isEnrolled}
                             hasPendingRequest={hasPendingRequest}
                         />
@@ -508,7 +537,7 @@ export default function CoursesPage() {
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => (
                 <div key={course.id} className="relative group">
-                    <CourseCard course={course} userRole={currentUser.role} />
+                    <CourseCard course={course} userRole={userProfile.role} />
                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -539,7 +568,7 @@ export default function CoursesPage() {
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteCourse(course.id)}>Delete</AlertDialogAction>
+                                            <AlertDialogAction onClick={() => handleDeleteCourse(course.id!)}>Delete</AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
@@ -552,5 +581,3 @@ export default function CoursesPage() {
     </div>
   );
 }
-
-    
