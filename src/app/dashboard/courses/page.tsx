@@ -41,7 +41,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 // In a real app, this would come from an auth context
-const currentUser = MOCK_USERS.admin;
+const currentUser = MOCK_USERS.student;
 const allTeachers = Object.values(MOCK_USERS).filter(u => u.role === 'teacher');
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

@@ -18,8 +18,8 @@ import { MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 
 // In a real app, this would come from your auth provider
-const user = MOCK_USERS.admin;
-// const user = MOCK_USERS.student;
+// const user = MOCK_USERS.admin;
+const user = MOCK_USERS.student;
 const userRole = user.role;
 
 const studentNav = [

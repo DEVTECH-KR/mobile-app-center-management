@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import Image from "next/image";
 
 // In a real app, this would come from an auth context. For now, we simulate it.
-const currentUserKey = 'admin'; 
+const currentUserKey = 'student'; 
 const allUsers = MOCK_USERS;
 
 
@@ -64,18 +64,18 @@ export default function ProfilePage() {
 
     const form = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
-        values: {
-            name: user?.name ?? '',
-            email: user?.email ?? '',
-            avatarUrl: user?.avatarUrl ?? '',
-            gender: user?.gender,
-            nationality: user?.nationality,
-            otherNationality: user?.otherNationality,
-            educationLevel: user?.educationLevel,
-            university: user?.university,
-            address: user?.address,
-            phone: user?.phone,
-        }
+        values: user ? {
+            name: user.name,
+            email: user.email,
+            avatarUrl: user.avatarUrl ?? null,
+            gender: user.gender,
+            nationality: user.nationality,
+            otherNationality: user.otherNationality,
+            educationLevel: user.educationLevel,
+            university: user.university,
+            address: user.address,
+            phone: user.phone,
+        } : {},
     });
     
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
@@ -352,5 +352,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

@@ -41,7 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // In a real app, this would come from an auth context
-const currentUser = MOCK_USERS.admin;
+const currentUser = MOCK_USERS.student;
 
 const allInitialUsers = Object.values(MOCK_USERS);
 const allClasses = MOCK_CLASSES;

@@ -17,8 +17,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 // In a real app, you'd get the user from an auth context
-const user: User = MOCK_USERS.admin; 
-// const user: User = MOCK_USERS.student;
+// const user: User = MOCK_USERS.admin; 
+const user: User = MOCK_USERS.student;
 
 
 export function UserNav() {
