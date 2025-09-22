@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MOCK_CLASSES, MOCK_COURSES } from "@/lib/mock-data";
+import { MOCK_USERS, MOCK_CLASSES, MOCK_COURSES } from "@/lib/mock-data";
 import { Input } from "@/components/ui/input";
-import { Edit, Loader2, MoreVertical, PlusCircle, Search, Trash2 } from "lucide-react";
+import { Edit, MoreVertical, PlusCircle, Search, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -39,11 +39,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { useAuth } from "@/context/auth-context";
-import { collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
-
+// In a real app, this would come from an auth context
+const userRole = MOCK_USERS.admin.role; 
+const allUsers = Object.values(MOCK_USERS);
 const allClasses = MOCK_CLASSES;
 
 const roleVariant: Record<UserRole, "default" | "secondary" | "outline"> = {
@@ -60,9 +59,7 @@ const formSchema = z.object({
 });
 
 export default function UsersPage() {
-    const { userProfile } = useAuth();
-    const [users, setUsers] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [users, setUsers] = useState<User[]>(allUsers);
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -71,30 +68,6 @@ export default function UsersPage() {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
     });
-
-    useEffect(() => {
-        const fetchUsers = async () => {
-            setLoading(true);
-            try {
-                const usersCollection = collection(db, "users");
-                const usersSnapshot = await getDocs(usersCollection);
-                const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-                setUsers(usersList);
-            } catch (error) {
-                console.error("Error fetching users:", error);
-                toast({
-                    title: "Error",
-                    description: "Could not fetch users.",
-                    variant: "destructive"
-                });
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchUsers();
-    }, [toast]);
-
 
      const handleOpenCreateDialog = () => {
         setEditingUser(null);
@@ -113,48 +86,33 @@ export default function UsersPage() {
         setIsFormDialogOpen(true);
     };
 
-    const handleDeleteUser = async (userId: string) => {
-        try {
-            await deleteDoc(doc(db, "users", userId));
-            setUsers(prev => prev.filter(u => u.id !== userId));
-            toast({
-                title: "User Deleted",
-                description: "The user has been successfully deleted.",
-                variant: "destructive"
-            });
-        } catch (error) {
-            console.error("Error deleting user:", error);
-            toast({
-                title: "Error",
-                description: "Could not delete user.",
-                variant: "destructive"
-            });
-        }
+    const handleDeleteUser = (userId: string) => {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        toast({
+            title: "User Deleted",
+            description: "The user has been successfully deleted.",
+            variant: "destructive"
+        });
     }
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
-        form.handleSubmit(async () => {
-            try {
+    function onSubmit(values: z.infer<typeof formSchema>) {
+        form.handleSubmit(() => {
+            // Simulate API call
+            setTimeout(() => {
                 if (editingUser) {
-                    const updatedUser = { ...editingUser, ...values, role: values.role as UserRole };
-                    await setDoc(doc(db, "users", editingUser.id), updatedUser);
+                    const updatedUser: User = { ...editingUser, ...values, role: values.role as UserRole };
                     setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
                     toast({
                         title: "User Updated",
                         description: `The user "${updatedUser.name}" has been updated.`,
                     });
                 } else {
-                    // Note: Creating a user here does not create an auth user. 
-                    // This form is for creating user profiles in Firestore directly.
-                    // A more robust solution would involve a Cloud Function.
-                    const newId = `user-${Date.now()}`;
                     const newUser: User = {
-                        id: newId,
+                        id: `user-${Date.now()}`,
                         ...values,
                         role: values.role as UserRole,
-                        avatarUrl: values.avatarUrl || `https://picsum.photos/seed/${newId}/100/100`,
+                        avatarUrl: values.avatarUrl || `https://picsum.photos/seed/${Date.now()}/100/100`,
                     }
-                    await setDoc(doc(db, "users", newId), newUser);
                     setUsers(prev => [newUser, ...prev]);
                     toast({
                         title: "User Created",
@@ -164,14 +122,7 @@ export default function UsersPage() {
                 setIsFormDialogOpen(false);
                 setEditingUser(null);
                 form.reset();
-            } catch (error) {
-                 console.error("Error saving user:", error);
-                 toast({
-                    title: "Error",
-                    description: "Could not save user.",
-                    variant: "destructive"
-                });
-            }
+            }, 500);
         })()
     }
     
@@ -185,7 +136,7 @@ export default function UsersPage() {
     }, [users, searchTerm]);
 
 
-    if (userProfile?.role !== 'admin') {
+    if (userRole !== 'admin') {
         return (
             <div className="flex items-center justify-center h-full">
                 <p className="text-muted-foreground">You do not have permission to access this page.</p>
@@ -297,105 +248,91 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-                 <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground"/>
-                    </TableCell>
-                </TableRow>
-            ) : filteredUsers.length === 0 ? (
-                <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
-                        No users found.
-                    </TableCell>
-                </TableRow>
-            ) : (
-                filteredUsers.map((user) => {
-                const assignedClasses = user.classIds?.map(id => MOCK_CLASSES.find(c => c.id === id)).filter(Boolean) || [];
-                const assignedClassNames = assignedClasses.map(c => {
-                    const course = MOCK_COURSES.find(co => co.id === c!.courseId);
-                    return `${c!.name} (${course?.title} - ${c!.level})`
-                }).join(', ');
+            {filteredUsers.map((user) => {
+              const assignedClasses = user.classIds?.map(id => MOCK_CLASSES.find(c => c.id === id)).filter(Boolean) || [];
+              const assignedClassNames = assignedClasses.map(c => {
+                  const course = MOCK_COURSES.find(co => co.id === c!.courseId);
+                  return `${c!.name} (${course?.title} - ${c!.level})`
+              }).join(', ');
 
-                return(
-                    <TableRow key={user.id}>
-                    <TableCell>
-                        <div className="flex items-center gap-3">
-                        <Avatar>
-                            <AvatarImage src={user.avatarUrl} alt={user.name} />
-                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                            {user.email}
-                            </div>
+              return(
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {user.email}
                         </div>
-                        </div>
-                    </TableCell>
-                    <TableCell>
-                        <Badge variant={roleVariant[user.role]} className="capitalize">{user.role}</Badge>
-                    </TableCell>
-                    <TableCell>
-                        {user.role === 'teacher' ? (
-                            <Select defaultValue={assignedClasses[0]?.id}>
-                                <SelectTrigger className="w-[280px]">
-                                    <SelectValue placeholder="Assign a class" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {allClasses.map(c => {
-                                        const course = MOCK_COURSES.find(co => co.id === c.courseId);
-                                        return <SelectItem key={c.id} value={c.id}>{c.name} ({course?.title} - {c.level})</SelectItem>
-                                    })}
-                                </SelectContent>
-                            </Select>
-                        ) : user.role === 'student' ? (
-                            <span>{assignedClassNames || "Not assigned"}</span>
-                        ) : (
-                            <span className="text-muted-foreground">N/A</span>
-                        )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleOpenEditDialog(user)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            Delete User
-                                        </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This action cannot be undone. This will permanently delete the user <span className="font-semibold">"{user.name}"</span>.
-                                        </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                    </TableRow>
-                )
-                })
-            )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={roleVariant[user.role]} className="capitalize">{user.role}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {user.role === 'teacher' ? (
+                        <Select defaultValue={assignedClasses[0]?.id}>
+                            <SelectTrigger className="w-[280px]">
+                                <SelectValue placeholder="Assign a class" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {allClasses.map(c => {
+                                    const course = MOCK_COURSES.find(co => co.id === c.courseId);
+                                    return <SelectItem key={c.id} value={c.id}>{c.name} ({course?.title} - {c.level})</SelectItem>
+                                })}
+                            </SelectContent>
+                        </Select>
+                    ) : user.role === 'student' ? (
+                        <span>{assignedClassNames || "Not assigned"}</span>
+                    ) : (
+                         <span className="text-muted-foreground">N/A</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleOpenEditDialog(user)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete User
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete the user <span className="font-semibold">"{user.name}"</span>.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>

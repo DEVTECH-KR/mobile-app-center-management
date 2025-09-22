@@ -18,8 +18,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { MOCK_USERS } from "@/lib/mock-data";
+
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -41,30 +41,30 @@ export function LoginForm() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
-      router.push("/dashboard");
-    } catch (error: any) {
-      console.error("Login Error:", error);
-      let description = "An unexpected error occurred. Please try again.";
-      // Firebase error codes for auth
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        description = "Invalid email or password. Please try again.";
-      }
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: description,
-      });
-    } finally {
+    // Simulate a network request
+    setTimeout(() => {
+        // In a real app, you'd authenticate with a backend.
+        // Here, we'll just check against our mock users.
+        const user = Object.values(MOCK_USERS).find(u => u.email === values.email);
+
+        if (user) {
+             toast({
+                title: "Login Successful",
+                description: "Welcome back!",
+            });
+            // Redirect to a protected route
+            router.push("/dashboard");
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Login Failed",
+                description: "Invalid email or password.",
+            });
+        }
       setIsLoading(false);
-    }
+    }, 1000);
   }
 
   return (
@@ -104,5 +104,3 @@ export function LoginForm() {
     </Form>
   );
 }
-
-    

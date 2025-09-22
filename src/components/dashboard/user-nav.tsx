@@ -11,48 +11,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/context/auth-context";
-import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
+import { MOCK_USERS } from "@/lib/mock-data";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
+// In a real app, this data would come from an authentication context
+const user = MOCK_USERS.admin;
 
 export function UserNav() {
-  const router = useRouter();
-  const { user, userProfile, loading } = useAuth();
-  
-  const handleLogout = async () => {
-    try {
-        await signOut(auth);
-        router.push('/');
-    } catch (error) {
-        console.error("Logout Error:", error);
-    }
-  }
-
-  if (loading || !user || !userProfile) {
-    return (
-         <Avatar className="h-9 w-9 bg-muted" />
-    )
-  }
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={userProfile.avatarUrl} alt={userProfile.name} />
-            <AvatarFallback>{userProfile.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src={user.avatarUrl} alt={user.name} />
+            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{userProfile.name}</p>
+            <p className="text-sm font-medium leading-none">{user.name}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {userProfile.email}
+              {user.email}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -69,8 +50,8 @@ export function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
-          Log out
+        <DropdownMenuItem asChild>
+          <Link href="/">Log out</Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

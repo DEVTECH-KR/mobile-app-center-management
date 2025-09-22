@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FilePen, MoreVertical, Search, CheckCircle, XCircle, Hourglass, Loader2 } from "lucide-react";
+import { FilePen, MoreVertical, Search, CheckCircle, XCircle, Hourglass } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -19,15 +19,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MOCK_ENROLLMENT_REQUESTS, MOCK_USERS } from "@/lib/mock-data";
 import type { EnrollmentRequest, EnrollmentStatus, User } from "@/lib/types";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/context/auth-context";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, updateDoc, Timestamp } from "firebase/firestore";
-import { useToast } from "@/hooks/use-toast";
 
+
+const allUsers = Object.values(MOCK_USERS);
 
 const statusVariant: Record<EnrollmentStatus, { variant: "default" | "secondary" | "outline" | "destructive", icon: React.ElementType }> = {
     approved: { variant: "default", icon: CheckCircle },
@@ -35,84 +34,28 @@ const statusVariant: Record<EnrollmentStatus, { variant: "default" | "secondary"
     rejected: { variant: "destructive", icon: XCircle },
 }
 
+// In a real app, this would come from an auth context
+const userRole = MOCK_USERS.admin.role;
+
 export default function EnrollmentRequestsPage() {
-    const { userProfile } = useAuth();
-    const [requests, setRequests] = useState<EnrollmentRequest[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [requests, setRequests] = useState<EnrollmentRequest[]>(MOCK_ENROLLMENT_REQUESTS);
     const [searchTerm, setSearchTerm] = useState('');
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const fetchRequests = async () => {
-            setLoading(true);
-            try {
-                const requestsCollection = collection(db, "enrollmentRequests");
-                const requestsSnapshot = await getDocs(requestsCollection);
-                const requestsList = requestsSnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return { 
-                        id: doc.id, 
-                        ...data,
-                        requestDate: (data.requestDate as Timestamp).toDate(),
-                    } as EnrollmentRequest;
-                });
-                setRequests(requestsList);
-            } catch (error) {
-                console.error("Error fetching enrollment requests:", error);
-                toast({ title: "Error", description: "Could not fetch requests.", variant: "destructive"});
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchRequests();
-    }, [toast]);
-
-
-    const updateRequestStatus = async (requestId: string, status: EnrollmentStatus) => {
-        try {
-            const requestRef = doc(db, "enrollmentRequests", requestId);
-            await updateDoc(requestRef, { status });
-
-            // Also update the student's enrolled courses if approved
-            if (status === 'approved') {
-                const request = requests.find(r => r.id === requestId);
-                if (request) {
-                    const userRef = doc(db, "users", request.userId);
-                    // This is a simplified update. A real app would use arrayUnion.
-                    // For now, we fetch, update, and set.
-                    const userSnap = await getDocs(collection(db, "users"));
-                    const userToUpdate = userSnap.docs.find(d => d.id === request.userId)?.data() as User;
-                    const currentCourses = userToUpdate.enrolledCourseIds || [];
-                    if (!currentCourses.includes(request.courseId)) {
-                         await updateDoc(userRef, {
-                            enrolledCourseIds: [...currentCourses, request.courseId]
-                         });
-                    }
-                }
-            }
-
-            setRequests(prev => prev.map(r => r.id === requestId ? {...r, status } : r));
-            toast({
-                title: `Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-                description: `The enrollment request has been ${status}.`,
-            })
-        } catch (error) {
-            console.error(`Error updating request to ${status}:`, error);
-            toast({ title: "Error", description: "Could not update request status.", variant: "destructive"});
-        }
+    
+    const updateRequestStatus = (requestId: string, status: EnrollmentStatus) => {
+        setRequests(prev => prev.map(r => r.id === requestId ? {...r, status } : r));
     }
     
     const filteredRequests = useMemo(() => {
-        const lowercasedTerm = searchTerm.toLowerCase();
         return requests.filter(request => {
-            return request.userName.toLowerCase().includes(lowercasedTerm) ||
-                   request.userEmail.toLowerCase().includes(lowercasedTerm)
+            const user = allUsers.find(u => u.id === request.userId);
+            if (!user) return false;
+            return user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                   user.email.toLowerCase().includes(searchTerm.toLowerCase())
         });
     }, [requests, searchTerm]);
 
 
-    if (userProfile?.role !== 'admin') {
+    if (userRole !== 'admin') {
         return (
             <div className="flex items-center justify-center h-full">
                 <p className="text-muted-foreground">You do not have permission to access this page.</p>
@@ -157,79 +100,66 @@ export default function EnrollmentRequestsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-             {loading ? (
-                 <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground"/>
-                    </TableCell>
-                </TableRow>
-            ) : filteredRequests.length === 0 ? (
-                <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                        No enrollment requests found.
-                    </TableCell>
-                </TableRow>
-            ) : (
-                filteredRequests.map((request) => {
-                const { icon: StatusIcon, variant: statusBadgeVariant } = statusVariant[request.status];
+            {filteredRequests.map((request) => {
+              const user = allUsers.find((u) => u.id === request.userId);
+              const { icon: StatusIcon, variant: statusBadgeVariant } = statusVariant[request.status];
 
-                return(
-                    <TableRow key={request.id}>
-                    <TableCell>
-                        <div className="flex items-center gap-3">
-                        {/* Avatar could be added if user profile pics are available */}
-                        <Avatar className="h-9 w-9">
-                            <AvatarFallback>{request.userName.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <div className="font-medium">{request.userName}</div>
-                            <div className="text-sm text-muted-foreground">
-                            {request.userEmail}
-                            </div>
+              if (!user) return null;
+
+              return(
+                <TableRow key={request.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {user.email}
                         </div>
-                        </div>
-                    </TableCell>
-                    <TableCell>{request.courseTitle}</TableCell>
-                    <TableCell>{format(new Date(request.requestDate), "MMM d, yyyy 'at' h:mm a")}</TableCell>
-                    <TableCell>
-                        <Badge variant={statusBadgeVariant} className="capitalize flex items-center gap-1.5">
-                            <StatusIcon className="h-3.5 w-3.5" />
-                            {request.status}
-                        </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                        {request.status === 'pending' ? (
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                <MoreVertical className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => updateRequestStatus(request.id!, 'approved')}>
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Approve
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => updateRequestStatus(request.id!, 'rejected')} className="text-destructive">
-                                    <XCircle className="mr-2 h-4 w-4" />
-                                    Reject
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        ) : (
-                            <Button variant="outline" size="sm" disabled>Processed</Button>
-                        )}
-                    </TableCell>
-                    </TableRow>
-                )
-                })
-            )}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{request.courseTitle}</TableCell>
+                  <TableCell>{format(new Date(request.requestDate as string), "MMM d, yyyy 'at' h:mm a")}</TableCell>
+                  <TableCell>
+                    <Badge variant={statusBadgeVariant} className="capitalize flex items-center gap-1.5">
+                        <StatusIcon className="h-3.5 w-3.5" />
+                        {request.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {request.status === 'pending' ? (
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => updateRequestStatus(request.id!, 'approved')}>
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Approve
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => updateRequestStatus(request.id!, 'rejected')} className="text-destructive">
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Reject
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    ) : (
+                        <Button variant="outline" size="sm" disabled>Processed</Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>
     </div>
   );
 }
-
-    

@@ -1,111 +1,58 @@
 
 'use client';
 import { Button } from "@/components/ui/button";
-import { MOCK_CENTER_INFO, MOCK_ENROLLMENT_REQUESTS } from "@/lib/mock-data";
+import { MOCK_COURSES, MOCK_USERS, MOCK_CENTER_INFO, MOCK_ENROLLMENT_REQUESTS } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, BookOpen, Clock, Tag, User, Star, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { EnrollmentRequest, Course, User as UserType } from "@/lib/types";
-import { useAuth } from "@/context/auth-context";
-import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, getDocs, where, query, addDoc } from "firebase/firestore";
+import type { EnrollmentRequest } from "@/lib/types";
+
+// In a real app, these would come from an auth context.
+const currentUser = MOCK_USERS.student; 
+const allUsers = Object.values(MOCK_USERS);
 
 export default function CourseDetailsPage({ params }: { params: { id: string } }) {
-  const { userProfile, loading } = useAuth();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [teachers, setTeachers] = useState<UserType[]>([]);
-  const [pageLoading, setPageLoading] = useState(true);
+  const course = MOCK_COURSES.find((c) => c.id === params.id);
+  const { toast } = useToast();
   
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRequestSubmitted, setIsRequestSubmitted] = useState(false);
-  const [hasPendingRequest, setHasPendingRequest] = useState(false);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (!params.id) return;
-    const fetchCourseAndRequests = async () => {
-        setPageLoading(true);
-        try {
-            // Fetch course
-            const courseDoc = await getDoc(doc(db, "courses", params.id));
-            if (courseDoc.exists()) {
-                const courseData = { id: courseDoc.id, ...courseDoc.data() } as Course;
-                setCourse(courseData);
-
-                // Fetch teachers for the course
-                if (courseData.teacherIds && courseData.teacherIds.length > 0) {
-                     const usersQuery = query(collection(db, "users"), where("role", "==", "teacher"), where("id", "in", courseData.teacherIds));
-                     const usersSnapshot = await getDocs(usersQuery);
-                     const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserType));
-                     setTeachers(usersList);
-                }
-            } else {
-                setCourse(null);
-            }
-
-            // Check for existing enrollment requests for the current user and course
-            if (userProfile) {
-                const requestsQuery = query(
-                    collection(db, "enrollmentRequests"), 
-                    where("userId", "==", userProfile.id), 
-                    where("courseId", "==", params.id),
-                    where("status", "==", "pending")
-                );
-                const requestSnapshot = await getDocs(requestsQuery);
-                setHasPendingRequest(!requestSnapshot.empty);
-            }
-
-        } catch (error) {
-            console.error("Error fetching course data:", error);
-            toast({ title: "Error", description: "Could not load course details.", variant: "destructive"});
-        } finally {
-            setPageLoading(false);
-        }
-    };
-    
-    if(!loading) {
-      fetchCourseAndRequests();
-    }
-  }, [params.id, userProfile, loading, toast]);
-  
-  if (pageLoading || loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
 
   if (!course) {
     notFound();
   }
+  
+  const teachers = course.teacherIds.map(id => allUsers.find(u => u.id === id)).filter(Boolean);
+  const isEnrolled = currentUser?.enrolledCourseIds?.includes(course.id);
+  // This is a mock check. In a real app, you'd have a better way to track this.
+  const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === currentUser.id && req.courseId === course.id && req.status === 'pending');
+  const canEnroll = currentUser?.role === 'student' && !isEnrolled && !hasPendingRequest && !isRequestSubmitted;
 
-  const isEnrolled = userProfile?.enrolledCourseIds?.includes(course.id!);
-  const canEnroll = userProfile?.role === 'student' && !isEnrolled && !hasPendingRequest && !isRequestSubmitted;
 
-
-  const handleEnrollmentRequest = async () => {
-    if (!userProfile || !course) return;
+  const handleEnrollmentRequest = () => {
     setIsSubmitting(true);
-    try {
-      const newRequest: Omit<EnrollmentRequest, 'id'> = {
-        userId: userProfile.id,
-        courseId: course.id!,
-        requestDate: new Date(),
+    // Simulate API call to submit request
+    setTimeout(() => {
+        // You could add the request to a mock list or just show the success state
+      const newRequest: EnrollmentRequest = {
+        id: `req-${Date.now()}`,
+        userId: currentUser.id,
+        courseId: course.id,
+        requestDate: new Date().toISOString(),
         status: 'pending',
-        userName: userProfile.name,
-        userEmail: userProfile.email,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
         courseTitle: course.title,
       };
-      
-      await addDoc(collection(db, "enrollmentRequests"), newRequest);
+      // In a real app, you'd add this to your state management or refetch
+      console.log("New enrollment request:", newRequest);
 
       setIsSubmitting(false);
       setShowConfirmDialog(false);
@@ -114,12 +61,7 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
           title: "Enrollment Request Submitted!",
           description: `Your request for ${course.title} has been received.`,
         });
-    } catch (error) {
-        console.error("Error submitting enrollment request: ", error);
-        toast({ title: "Error", description: "Could not submit your request.", variant: "destructive" });
-        setIsSubmitting(false);
-        setShowConfirmDialog(false);
-    }
+    }, 1000);
   }
 
   const schedule = `${course.days.join(', ')} | ${course.startTime} - ${course.endTime}`;
@@ -187,7 +129,7 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
                             <div>
                                 <p className="font-medium">Instructors</p>
                                 <div className="text-sm text-muted-foreground">
-                                    {teachers.length > 0 ? teachers.map(t => t.name).join(', ') : 'Not yet assigned'}
+                                    {teachers.length > 0 ? teachers.map(t => t!.name).join(', ') : 'Not yet assigned'}
                                 </div>
                             </div>
                         </div>
@@ -242,5 +184,3 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
       </div>
   );
 }
-
-    

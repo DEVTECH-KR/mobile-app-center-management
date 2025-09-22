@@ -23,9 +23,9 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/context/auth-context";
 
-
+// In a real app, this would come from an auth context
+const currentUser = MOCK_USERS.student;
 const allUsers = Object.values(MOCK_USERS);
 
 const formSchema = z.object({
@@ -37,7 +37,6 @@ const formSchema = z.object({
 
 
 export default function DocumentsPage() {
-    const { userProfile, loading } = useAuth();
     const [documents, setDocuments] = useState<Document[]>(MOCK_DOCUMENTS);
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const { toast } = useToast();
@@ -45,25 +44,16 @@ export default function DocumentsPage() {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
     });
-
-    if (loading || !userProfile) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        );
-    }
     
-    const managedCourses = userProfile.role === 'teacher' ? MOCK_COURSES.filter(course => course.teacherIds?.includes(userProfile.id)) : [];
-    const enrolledCourses = userProfile.role === 'student' ? MOCK_COURSES.filter(course => userProfile.enrolledCourseIds?.includes(course.id)) : [];
+    const managedCourses = currentUser.role === 'teacher' ? MOCK_COURSES.filter(course => course.teacherIds?.includes(currentUser.id)) : [];
+    const enrolledCourses = currentUser.role === 'student' ? MOCK_COURSES.filter(course => currentUser.enrolledCourseIds?.includes(course.id)) : [];
 
-    const documentsByCourse = (userProfile.role === 'student' ? enrolledCourses : managedCourses).map(course => ({
+    const documentsByCourse = (currentUser.role === 'student' ? enrolledCourses : managedCourses).map(course => ({
         ...course,
         documents: documents.filter(doc => doc.courseId === course.id)
     }));
     
     function onSubmit(values: z.infer<typeof formSchema>) {
-        if (!userProfile) return;
         form.handleSubmit(() => {
             // Simulate API call
             setTimeout(() => {
@@ -72,7 +62,7 @@ export default function DocumentsPage() {
                     ...values,
                     type: values.type as "Syllabus" | "Material" | "Assignment" | "Evaluation",
                     uploadedAt: new Date().toISOString(),
-                    uploaderId: userProfile.id
+                    uploaderId: currentUser.id
                 }
                 setDocuments(prev => [newDocument, ...prev]);
                 toast({
@@ -95,10 +85,10 @@ export default function DocumentsPage() {
             Course Documents
             </h2>
             <p className="text-muted-foreground">
-                {userProfile.role === 'student' ? 'Access your syllabus, materials, and assignments here.' : 'Manage and upload documents for your courses.'}
+                {currentUser.role === 'student' ? 'Access your syllabus, materials, and assignments here.' : 'Manage and upload documents for your courses.'}
             </p>
         </div>
-         {userProfile.role === 'teacher' && (
+         {currentUser.role === 'teacher' && (
             <Button onClick={() => setIsFormDialogOpen(true)}>
                 <PlusCircle className="mr-2 h-4 w-4"/>
                 Upload Document

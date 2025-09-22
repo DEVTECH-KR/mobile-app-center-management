@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CourseCard } from "@/components/dashboard/course-card";
-import { MOCK_ENROLLMENT_REQUESTS } from "@/lib/mock-data";
+import { MOCK_COURSES, MOCK_ENROLLMENT_REQUESTS, MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
-import { Edit, FileUp, Loader2, MoreVertical, PlusCircle, Trash2, X, Clock, User, Users, Star } from "lucide-react";
+import { Edit, FileUp, MoreVertical, PlusCircle, Trash2, X, Clock, User, Users, Star } from "lucide-react";
 import type { Course, User as UserType } from "@/lib/types";
 import {
   Dialog,
@@ -38,9 +38,11 @@ import { CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { useAuth } from "@/context/auth-context";
-import { collection, getDocs, doc, setDoc, deleteDoc, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+
+// In a real app, this would come from an auth context
+const userRole = MOCK_USERS.admin.role; 
+const currentUser = MOCK_USERS.admin;
+const allTeachers = Object.values(MOCK_USERS).filter(u => u.role === 'teacher');
 
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const courseLevels = ["Beginner", "Intermediate", "Advanced", "All levels"];
@@ -61,38 +63,12 @@ const formSchema = z.object({
 
 
 export default function CoursesPage() {
-    const { userProfile, loading } = useAuth();
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [allTeachers, setAllTeachers] = useState<UserType[]>([]);
-    const [pageLoading, setPageLoading] = useState(true);
+    const [courses, setCourses] = useState<Course[]>(MOCK_COURSES);
     const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [showOtherInstructorField, setShowOtherInstructorField] = useState(false);
     const { toast } = useToast();
-
-    useEffect(() => {
-        const fetchData = async () => {
-            setPageLoading(true);
-            try {
-                const coursesCollection = collection(db, "courses");
-                const coursesSnapshot = await getDocs(coursesCollection);
-                const coursesList = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-                setCourses(coursesList);
-
-                const usersCollection = collection(db, "users");
-                const usersSnapshot = await getDocs(usersCollection);
-                const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserType));
-                setAllTeachers(usersList.filter(u => u.role === 'teacher'));
-            } catch (error) {
-                console.error("Error fetching data:", error);
-                toast({ title: "Error", description: "Could not fetch data.", variant: "destructive" });
-            } finally {
-                setPageLoading(false);
-            }
-        };
-        fetchData();
-    }, [toast]);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -144,104 +120,82 @@ export default function CoursesPage() {
         setIsFormDialogOpen(true);
     };
 
-    const handleDeleteCourse = async (courseId: string) => {
-        try {
-            await deleteDoc(doc(db, "courses", courseId));
-            setCourses(prev => prev.filter(c => c.id !== courseId));
-            toast({
-                title: "Course Deleted",
-                description: "The course has been successfully deleted.",
-                variant: "destructive"
-            });
-        } catch (error) {
-            console.error("Error deleting course: ", error);
-            toast({
-                title: "Error",
-                description: "There was a problem deleting the course.",
-                variant: "destructive"
-            });
-        }
+    const handleDeleteCourse = (courseId: string) => {
+        setCourses(prev => prev.filter(c => c.id !== courseId));
+        toast({
+            title: "Course Deleted",
+            description: "The course has been successfully deleted.",
+            variant: "destructive"
+        });
     }
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
-        try {
-            let finalTeacherIds = values.teacherIds || [];
-            if (values.otherInstructorName) {
-                const newTeacherId = `user-other-${Date.now()}`;
-                finalTeacherIds.push(newTeacherId);
-            }
+    function onSubmit(values: z.infer<typeof formSchema>) {
+        form.handleSubmit(() => {
+            // Simulate API call
+            setTimeout(() => {
+                let finalTeacherIds = values.teacherIds || [];
+                if (values.otherInstructorName) {
+                    const newTeacherId = `user-other-${Date.now()}`;
+                    finalTeacherIds.push(newTeacherId);
+                }
 
-            const courseData = {
-                ...values,
-                teacherIds: finalTeacherIds,
-            };
-            delete (courseData as any).otherInstructorName;
+                const courseData: Course = {
+                    ...values,
+                    teacherIds: finalTeacherIds,
+                };
+                delete (courseData as any).otherInstructorName;
 
 
-            if (editingCourse) {
-                const courseRef = doc(db, "courses", editingCourse.id!);
-                await setDoc(courseRef, courseData, { merge: true });
-                setCourses(prev => prev.map(c => c.id === editingCourse.id ? { ...c, ...courseData } : c));
-                toast({
-                    title: "Course Updated",
-                    description: `The course "${courseData.title}" has been updated.`,
-                });
-            } else {
-                const docRef = await addDoc(collection(db, "courses"), courseData);
-                const newCourse = { id: docRef.id, ...courseData };
-                setCourses(prev => [newCourse, ...prev]);
-                toast({
-                    title: "Course Created",
-                    description: `The course "${newCourse.title}" has been successfully created.`,
-                });
-            }
-            setIsFormDialogOpen(false);
-            setEditingCourse(null);
-            setImagePreview(null);
-            setShowOtherInstructorField(false);
-            form.reset();
-        } catch (error) {
-             console.error("Error saving course: ", error);
-            toast({
-                title: "Error",
-                description: "There was a problem saving the course.",
-                variant: "destructive"
-            });
-        }
+                if (editingCourse) {
+                    const updatedCourse = { ...editingCourse, ...courseData };
+                    setCourses(prev => prev.map(c => c.id === editingCourse.id ? updatedCourse : c));
+                    toast({
+                        title: "Course Updated",
+                        description: `The course "${updatedCourse.title}" has been updated.`,
+                    });
+                } else {
+                    const newCourse: Course = {
+                        id: `course-${Date.now()}`,
+                        ...courseData
+                    }
+                    setCourses(prev => [newCourse, ...prev]);
+                    toast({
+                        title: "Course Created",
+                        description: `The course "${newCourse.title}" has been successfully created.`,
+                    });
+                }
+                setIsFormDialogOpen(false);
+                setEditingCourse(null);
+                setImagePreview(null);
+                setShowOtherInstructorField(false);
+                form.reset();
+            }, 500);
+        })()
     }
   
-  if (loading || pageLoading || !userProfile) {
-     return (
-        <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      );
-  }
-  
-  const studentEnrolledCourses = courses.filter(c => userProfile?.enrolledCourseIds?.includes(c.id!));
+  const studentEnrolledCourses = courses.filter(c => currentUser?.enrolledCourseIds?.includes(c.id));
 
-  if (userProfile.role !== 'admin') {
+  if (userRole !== 'admin') {
       return (
         <div className="space-y-6">
             <div>
                 <h2 className="text-3xl font-bold font-headline tracking-tight">
-                {userProfile.role === 'teacher' ? 'My Courses' : 'Our Courses'}
+                {userRole === 'teacher' ? 'My Courses' : 'Our Courses'}
                 </h2>
                 <p className="text-muted-foreground">
-                {userProfile.role === 'teacher' ? 'Courses you are assigned to teach.' : 'Browse our available courses and start your learning journey today.'}
+                {userRole === 'teacher' ? 'Courses you are assigned to teach.' : 'Browse our available courses and start your learning journey today.'}
                 </p>
             </div>
             <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {(userProfile.role === 'teacher' ? courses.filter(c => c.teacherIds.includes(userProfile.id)) : courses).map((course) => {
-                    const isEnrolled = userProfile.enrolledCourseIds?.includes(course.id!);
-                    // This part still uses mock data, will be migrated later.
-                    const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === userProfile.id && req.courseId === course.id && req.status === 'pending');
+                {(userRole === 'teacher' ? courses.filter(c => c.teacherIds.includes(currentUser.id)) : courses).map((course) => {
+                    const isEnrolled = currentUser.enrolledCourseIds?.includes(course.id);
+                    const hasPendingRequest = MOCK_ENROLLMENT_REQUESTS.some(req => req.userId === currentUser.id && req.courseId === course.id && req.status === 'pending');
                     
                     return (
                         <CourseCard 
                             key={course.id} 
                             course={course} 
-                            userRole={userProfile.role}
+                            userRole={userRole}
                             isEnrolled={isEnrolled}
                             hasPendingRequest={hasPendingRequest}
                         />
@@ -557,7 +511,7 @@ export default function CoursesPage() {
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {courses.map((course) => (
                 <div key={course.id} className="relative group">
-                    <CourseCard course={course} userRole={userProfile.role} />
+                    <CourseCard course={course} userRole={userRole} />
                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -588,7 +542,7 @@ export default function CoursesPage() {
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeleteCourse(course.id!)}>Delete</AlertDialogAction>
+                                            <AlertDialogAction onClick={() => handleDeleteCourse(course.id)}>Delete</AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>
@@ -601,5 +555,3 @@ export default function CoursesPage() {
     </div>
   );
 }
-
-    

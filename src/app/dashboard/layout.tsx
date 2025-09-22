@@ -12,17 +12,19 @@ import {
   SidebarInset,
   SidebarTrigger,
   SidebarFooter,
-  SidebarMenuSkeleton,
 } from "@/components/ui/sidebar";
 import { Home, Library, CreditCard, Calendar, FileText, Settings, Shield, User as UserIcon, LogOut, BookMarked, Send, Lock } from 'lucide-react';
 import { UserNav } from "@/components/dashboard/user-nav";
 import Link from "next/link";
 import Logo from "@/components/icons/logo";
+import { MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useAuth } from "@/context/auth-context";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+
+// In a real app, this would come from an auth context.
+// For now, we'll simulate a logged-in user. You can change this to 'student' or 'teacher' to see their view.
+const userRole = MOCK_USERS.admin.role; 
+const currentUser = MOCK_USERS.admin;
 
 const navConfig = {
   student: [
@@ -57,54 +59,9 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, userProfile, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
-
-
-  if (loading || !userProfile) {
-    return (
-       <SidebarProvider>
-        <Sidebar>
-          <SidebarHeader className="p-4">
-             <div className="flex items-center gap-2">
-                <Logo className="h-8 w-8 text-primary" />
-                <span className="font-bold font-headline text-lg group-data-[collapsible=icon]:hidden">
-                FFBF Training Hub
-                </span>
-            </div>
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-                <SidebarMenuSkeleton showIcon={true}/>
-                <SidebarMenuSkeleton showIcon={true}/>
-                <SidebarMenuSkeleton showIcon={true}/>
-                <SidebarMenuSkeleton showIcon={true}/>
-            </SidebarMenu>
-          </SidebarContent>
-        </Sidebar>
-         <div className="flex flex-col flex-1">
-          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card px-6">
-             <div className="flex items-center gap-4">
-                 <SidebarTrigger className="md:hidden" />
-            </div>
-          </header>
-          <main className="flex-1 overflow-y-auto p-6 bg-background">
-            {children}
-          </main>
-        </div>
-      </SidebarProvider>
-    );
-  }
-
-  const userRole = userProfile.role;
-  const navItems = navConfig[userRole] || [];
-  const studentHasAccess = userProfile.role === 'student' && (userProfile.enrolledCourseIds?.length ?? 0) > 0;
+  const navItems = navConfig[userRole];
+  // This is a mock check. In a real app, this would be based on the user's actual enrollment status.
+  const studentHasAccess = currentUser.role === 'student' && (currentUser.enrolledCourseIds?.length ?? 0) > 0;
 
   return (
     <SidebarProvider>
@@ -182,4 +139,3 @@ export default function DashboardLayout({
     </SidebarProvider>
   );
 }
-

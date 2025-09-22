@@ -3,48 +3,41 @@
 
 import { AdminPaymentManager } from "@/components/dashboard/admin-payment-manager";
 import { PaymentStatusCard } from "@/components/dashboard/payment-status";
-import { MOCK_COURSES, MOCK_PAYMENTS } from "@/lib/mock-data";
-import { useAuth } from "@/context/auth-context";
-import { Loader2 } from "lucide-react";
+import { MOCK_COURSES, MOCK_PAYMENTS, MOCK_USERS } from "@/lib/mock-data";
+
+// In a real app, this would come from an auth context.
+const currentUser = MOCK_USERS.admin;
 
 export default function PaymentsPage() {
-    const { userProfile, loading } = useAuth();
-
-    if (loading || !userProfile) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        );
-    }
-  
-  const studentEnrolledCourses = MOCK_COURSES.filter(c => userProfile.enrolledCourseIds?.includes(c.id));
+  const studentEnrolledCourses = MOCK_COURSES.filter(c => currentUser.enrolledCourseIds?.includes(c.id));
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold font-headline tracking-tight">
-          {userProfile.role === "admin" ? "Manage Payments" : "My Payments"}
+          {currentUser.role === "admin" ? "Manage Payments" : "My Payments"}
         </h2>
         <p className="text-muted-foreground">
-          {userProfile.role === "admin"
+          {currentUser.role === "admin"
             ? "View and manage all student payment records."
             : "Track your tuition fees and payment history for your enrolled courses."}
         </p>
       </div>
 
-      {userProfile.role === 'admin' ? (
+      {currentUser.role === 'admin' ? (
         <AdminPaymentManager />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {studentEnrolledCourses.map(course => {
                 let paymentDetails = null;
-                if (userProfile.id === 'user-1' && course.id === 'course-1') {
+                // This logic is highly specific to mock data and would be a database query in a real app
+                if (currentUser.id === 'user-1' && course.id === 'course-1') {
                     paymentDetails = MOCK_PAYMENTS;
-                } else if (userProfile.id === 'user-1' && course.id === 'course-2') {
+                } else if (currentUser.id === 'user-1' && course.id === 'course-2') {
+                    // Create some dynamic mock data for a second course
                     const totalDue = course.price + 20000;
                     paymentDetails = {
-                        userId: userProfile.id,
+                        userId: currentUser.id,
                         courseId: course.id,
                         registrationFee: 20000,
                         totalDue: totalDue,

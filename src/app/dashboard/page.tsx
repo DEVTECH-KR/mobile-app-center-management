@@ -3,33 +3,25 @@
 
 import { PaymentStatusCard } from "@/components/dashboard/payment-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_COURSES, MOCK_EVENTS, MOCK_PAYMENTS } from "@/lib/mock-data";
+import { MOCK_USERS, MOCK_COURSES, MOCK_EVENTS, MOCK_PAYMENTS } from "@/lib/mock-data";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BookOpen, Calendar, Loader2 } from "lucide-react";
-import { useAuth } from "@/context/auth-context";
+import { ArrowRight, BookOpen, Calendar } from "lucide-react";
+
+// In a real app, this would come from an auth context.
+const currentUser = MOCK_USERS.admin;
 
 export default function DashboardPage() {
-  const { userProfile, loading } = useAuth();
-
-  if (loading || !userProfile) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const enrolledCourses = MOCK_COURSES.filter(course => userProfile.enrolledCourseIds?.includes(course.id));
+  const enrolledCourses = MOCK_COURSES.filter(course => currentUser.enrolledCourseIds?.includes(course.id));
   const upcomingEvents = MOCK_EVENTS.filter(event => !event.isPast).slice(0, 2);
   // In a real app, you'd fetch the primary payment details for the user
-  const paymentDetails = userProfile.id === 'user-1' ? MOCK_PAYMENTS : null;
+  const paymentDetails = currentUser.id === 'user-1' ? MOCK_PAYMENTS : null;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold font-headline tracking-tight">
-          Welcome back, {userProfile.name.split(" ")[0]}!
+          Welcome back, {currentUser.name.split(" ")[0]}!
         </h2>
         <p className="text-muted-foreground">
           Here&apos;s a summary of your activities.
@@ -37,13 +29,13 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {userProfile.role === 'student' && paymentDetails && (
+        {currentUser.role === 'student' && paymentDetails && (
            <div className="lg:col-span-2">
             <PaymentStatusCard paymentDetails={paymentDetails}/>
            </div>
         )}
        
-        {userProfile.role === 'student' ? (
+        {currentUser.role === 'student' ? (
             <div className="space-y-6">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">

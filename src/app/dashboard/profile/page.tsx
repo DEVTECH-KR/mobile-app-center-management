@@ -1,6 +1,7 @@
 
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MOCK_USERS } from "@/lib/mock-data";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
@@ -10,15 +11,14 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from "@/hooks/use-toast";
 import { FileUp, Loader2, X } from "lucide-react";
 import type { User } from "@/lib/types";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
-import { useAuth } from "@/context/auth-context";
-import { db } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
 
+// In a real app, this would come from an auth context
+const currentUser = MOCK_USERS.admin;
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -47,33 +47,26 @@ const passwordFormSchema = z.object({
 
 
 export default function ProfilePage() {
-    const { user, userProfile, loading } = useAuth();
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [user, setUser] = useState<User>(currentUser);
+    const [imagePreview, setImagePreview] = useState<string | null>(user.avatarUrl || null);
 
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
-        values: userProfile ? {
-            name: userProfile.name,
-            email: userProfile.email,
-            avatarUrl: userProfile.avatarUrl ?? null,
-            gender: userProfile.gender,
-            nationality: userProfile.nationality,
-            otherNationality: userProfile.otherNationality,
-            educationLevel: userProfile.educationLevel,
-            university: userProfile.university,
-            address: userProfile.address,
-            phone: userProfile.phone,
-        } : {},
+        defaultValues: {
+            name: user.name,
+            email: user.email,
+            avatarUrl: user.avatarUrl ?? null,
+            gender: user.gender,
+            nationality: user.nationality,
+            otherNationality: user.otherNationality,
+            educationLevel: user.educationLevel,
+            university: user.university,
+            address: user.address,
+            phone: user.phone,
+        },
     });
-    
-    useEffect(() => {
-        if (userProfile) {
-            form.reset(userProfile);
-            setImagePreview(userProfile.avatarUrl || null);
-        }
-    }, [userProfile, form]);
 
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
         resolver: zodResolver(passwordFormSchema),
@@ -104,24 +97,19 @@ export default function ProfilePage() {
         form.setValue('avatarUrl', null, { shouldValidate: true });
     };
 
-    async function onProfileSubmit(values: z.infer<typeof profileFormSchema>) {
-        if (!user || !userProfile) return;
-        try {
-            const updatedProfile = { ...userProfile, ...values };
-            await setDoc(doc(db, "users", user.uid), updatedProfile, { merge: true });
-            toast({
-                title: "Profile Updated",
-                description: "Your profile information has been successfully saved.",
-            });
-            form.reset(values);
-        } catch (error) {
-             console.error("Error updating profile:", error);
-             toast({
-                title: "Error",
-                description: "Could not update your profile.",
-                variant: "destructive"
-            });
-        }
+    function onProfileSubmit(values: z.infer<typeof profileFormSchema>) {
+        // Simulate an API call
+        form.handleSubmit(() => {
+            setTimeout(() => {
+                const updatedUser = { ...user, ...values };
+                setUser(updatedUser); // Update local state
+                toast({
+                    title: "Profile Updated",
+                    description: "Your profile information has been successfully saved.",
+                });
+                form.reset(values); // This resets the "dirty" state of the form
+            }, 500);
+        })()
     }
     
      function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
@@ -135,14 +123,6 @@ export default function ProfilePage() {
             });
             passwordForm.reset();
         }, 500);
-    }
-
-    if (loading || !userProfile) {
-        return (
-             <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        )
     }
 
   return (
@@ -169,8 +149,8 @@ export default function ProfilePage() {
                                 <FormLabel>Profile Picture</FormLabel>
                                 <div className="flex items-center gap-4">
                                      <Avatar className="h-20 w-20">
-                                        <AvatarImage src={imagePreview || undefined} alt={userProfile.name} />
-                                        <AvatarFallback>{userProfile.name.charAt(0)}</AvatarFallback>
+                                        <AvatarImage src={imagePreview || undefined} alt={user.name} />
+                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1">
                                         {imagePreview ? (
