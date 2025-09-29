@@ -1,0 +1,1 @@
+export { recordPayment as POST } from '@/server/api/enrollments/enrollment.controller';

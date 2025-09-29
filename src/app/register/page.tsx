@@ -1,32 +1,26 @@
-import Link from 'next/link';
-import { RegisterForm } from '@/components/auth/register-form';
-import Logo from '@/components/icons/logo';
+import { RegisterForm } from "@/components/auth/register-form";
+import { AppHeader } from "@/components/layout/app-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function RegisterPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center">
-          <Link href="/" aria-label="Home">
-            <Logo className="h-16 w-16 text-primary" />
-          </Link>
-          <h1 className="mt-4 font-headline text-3xl font-bold">
-            Create an Account
-          </h1>
-          <p className="text-muted-foreground">
-            Join our community to start learning.
-          </p>
+    <div className="flex min-h-screen flex-col">
+      <AppHeader />
+      <main className="flex-1">
+        <div className="container flex items-center justify-center py-10">
+          <Card className="w-full max-w-lg">
+            <CardHeader>
+              <CardTitle>Create an Account</CardTitle>
+              <CardDescription>
+                Join FFBF Training Hub to start your learning journey
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RegisterForm />
+            </CardContent>
+          </Card>
         </div>
-        <RegisterForm />
-        <div className="mt-4 text-center text-sm">
-            <p>
-                Already have an account?{' '}
-                <Link href="/login" className="underline">
-                    Login
-                </Link>
-            </p>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

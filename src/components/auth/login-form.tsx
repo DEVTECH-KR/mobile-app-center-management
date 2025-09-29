@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { MOCK_USERS } from "@/lib/mock-data";
+import { useAuth } from "@/lib/auth";
 
 
 const formSchema = z.object({
@@ -32,6 +32,7 @@ export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -41,32 +42,48 @@ export function LoginForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  // function onSubmit(values: z.infer<typeof formSchema>) {
+  //   setIsLoading(true);
+  //   // Simulate a network request
+  //   setTimeout(() => {
+  //      try {
+  //       await login(values.email, values.password);
+  //       toast({
+  //         title: "Login Successful",
+  //         description: "Welcome back!",
+  //       });
+  //       router.push("/dashboard");
+  //     } catch (error) {
+  //       toast({
+  //         variant: "destructive",
+  //         title: "Login Failed",
+  //         description: error instanceof Error ? error.message : "An error occurred",
+  //       });
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   }, 1000);
+  // }
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    // Simulate a network request
-    setTimeout(() => {
-        // In a real app, you'd authenticate with a backend.
-        // Here, we'll just check against our mock users.
-        const user = Object.values(MOCK_USERS).find(u => u.email === values.email);
-
-        if (user) {
-             toast({
-                title: "Login Successful",
-                description: "Welcome back!",
-            });
-            // Redirect to a protected route
-            router.push("/dashboard");
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Login Failed",
-                description: "Invalid email or password.",
-            });
-        }
+    try {
+      await login(values.email, values.password);
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      });
+      router.push("/dashboard");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   }
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

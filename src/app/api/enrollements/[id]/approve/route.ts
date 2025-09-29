@@ -1,0 +1,1 @@
+export { approve as POST } from '@/server/api/enrollments/enrollment.controller';

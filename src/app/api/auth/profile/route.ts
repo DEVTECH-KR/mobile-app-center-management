@@ -1,0 +1,1 @@
+export { getProfile as GET } from '@/server/api/auth/auth.controller';
