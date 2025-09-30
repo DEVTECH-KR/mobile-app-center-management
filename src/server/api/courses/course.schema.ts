@@ -1,3 +1,4 @@
+// src/server/api/courses/course.schema.ts
 import mongoose from 'mongoose';
 
 const courseSchema = new mongoose.Schema({

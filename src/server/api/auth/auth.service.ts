@@ -1,3 +1,4 @@
+// src/server/api/auth/auth.service.ts
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from './user.schema';
@@ -69,4 +70,43 @@ export class AuthService {
 
     return user;
   }
+
+  static async updateProfile(userId: string, updateData: any) {
+    // Prevent updating sensitive fields
+    delete updateData.email;
+    delete updateData.role;
+    delete updateData.password;
+    delete updateData.enrolledCourseIds;
+    delete updateData.classIds;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return user;
+  }
+
+  static async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      throw new Error('Invalid current password');
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+    await user.save();
+
+    return { message: 'Password changed successfully' };
+  }  
 }

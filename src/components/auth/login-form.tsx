@@ -1,4 +1,4 @@
-
+// src/components/auth/login-form.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,29 +41,6 @@ export function LoginForm() {
       password: "",
     },
   });
-
-  // function onSubmit(values: z.infer<typeof formSchema>) {
-  //   setIsLoading(true);
-  //   // Simulate a network request
-  //   setTimeout(() => {
-  //      try {
-  //       await login(values.email, values.password);
-  //       toast({
-  //         title: "Login Successful",
-  //         description: "Welcome back!",
-  //       });
-  //       router.push("/dashboard");
-  //     } catch (error) {
-  //       toast({
-  //         variant: "destructive",
-  //         title: "Login Failed",
-  //         description: error instanceof Error ? error.message : "An error occurred",
-  //       });
-  //     } finally {
-  //       setIsLoading(false);
-  //     }
-  //   }, 1000);
-  // }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);

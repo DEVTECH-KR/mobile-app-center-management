@@ -1,3 +1,4 @@
+// Course Service: src/server/api/courses/course.service.ts
 import Course from './course.schema';
 import { Types } from 'mongoose';
 

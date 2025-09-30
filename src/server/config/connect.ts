@@ -1,3 +1,4 @@
+// src/server/config/connect.ts
 import { NextApiRequest, NextApiResponse } from 'next';
 import connectDB from './mongodb';
 

@@ -1,7 +1,6 @@
-
+// src/app/dashboard/settings/page.tsx
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_CENTER_INFO, MOCK_USERS } from "@/lib/mock-data";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,10 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
-
-// In a real app, this would come from an auth context
-const userRole = MOCK_USERS.admin.role;
+import { useAuth } from "@/lib/auth";
 
 const formSchema = z.object({
   mission: z.string().min(10, { message: "Mission statement is required." }),
@@ -26,12 +22,21 @@ const formSchema = z.object({
 });
 
 export default function SettingsPage() {
+    const { user } = useAuth();
     const { toast } = useToast();
     const { setTheme, theme } = useTheme();
 
+    if (!user || user.role !== 'admin') {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">You do not have permission to access this page.</p>
+            </div>
+        )
+    }
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: MOCK_CENTER_INFO,
+        defaultValues: {}, // Fetch real center info
     });
 
     function onSubmit(values: z.infer<typeof formSchema>) {
@@ -48,15 +53,6 @@ export default function SettingsPage() {
                 form.reset(values); // Resets form state to show it's no longer dirty
             }, 500);
         })()
-    }
-
-
-    if (userRole !== 'admin') {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground">You do not have permission to access this page.</p>
-            </div>
-        )
     }
 
   return (
@@ -77,7 +73,7 @@ export default function SettingsPage() {
             <CardDescription>Update mission statement, schedule, and fees.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Form {...form}>
+            <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <FormField control={form.control} name="mission" render={({ field }) => (
                             <FormItem>
@@ -145,5 +141,4 @@ export default function SettingsPage() {
     </div>
   );
 }
-
 

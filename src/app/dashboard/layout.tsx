@@ -1,4 +1,4 @@
-
+// src/app/dashboard/layout.tsx
 'use client';
 
 import {
@@ -17,14 +17,9 @@ import { Home, Library, CreditCard, Calendar, FileText, Settings, Shield, User a
 import { UserNav } from "@/components/dashboard/user-nav";
 import Link from "next/link";
 import Logo from "@/components/icons/logo";
-import { MOCK_USERS } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-
-// In a real app, this would come from an auth context.
-// For now, we'll simulate a logged-in user. You can change this to 'student' or 'teacher' to see their view.
-const userRole = MOCK_USERS.admin.role; 
-const currentUser = MOCK_USERS.admin;
+import { useAuth } from "@/lib/auth";
 
 const navConfig = {
   student: [
@@ -59,16 +54,22 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const navItems = navConfig[userRole];
-  // This is a mock check. In a real app, this would be based on the user's actual enrollment status.
-  const studentHasAccess = currentUser.role === 'student' && (currentUser.enrolledCourseIds?.length ?? 0) > 0;
+  const { user } = useAuth();
+
+  if (!user) {
+    return null; // Or redirect to login
+  }
+
+  const userRole = user.role; 
+  const navItems = navConfig[userRole] || navConfig.student;
+  const studentHasAccess = user.role === 'student' && user.accessLevel === 'full';
 
   return (
     <SidebarProvider>
       <Sidebar>
-        <SidebarHeader className="p-4">
+        <SidebarHeader className="border-b p-4">
           <div className="flex items-center gap-2">
-            <Logo className="h-8 w-8 text-primary" />
+            <Logo className="h-8 w-8" />
             <span className="font-bold font-headline text-lg group-data-[collapsible=icon]:hidden">
               FFBF Training Hub
             </span>

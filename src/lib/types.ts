@@ -1,4 +1,4 @@
-
+// src/lib/types.ts
 import { Timestamp } from "firebase/firestore";
 
 export type UserRole = "student" | "teacher" | "admin";
@@ -107,14 +107,26 @@ export type CenterInfo = {
 }
 
 export type EnrollmentRequest = {
-    id?: string; // Firestore will generate this
-    userId: string;
-    courseId: string;
-    requestDate: Timestamp | Date; // Use Timestamp for Firestore
-    status: EnrollmentStatus;
-    userName: string; // Denormalized for easy display
-    userEmail: string; // Denormalized for easy display
-    courseTitle: string; // Denormalized for easy display
-}
-
-    
+  _id: string;
+  studentId: {
+    _id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  };
+  courseId: {
+    _id: string;
+    title: string;
+    price: number;
+  };
+  status: EnrollmentStatus;
+  requestDate: Date;
+  approvalDate?: Date;
+  assignedClassId?: {
+    _id: string;
+    name: string;
+  };
+  adminNotes?: string;
+  registrationFeePaid: boolean;
+  paymentDate?: Date;
+};

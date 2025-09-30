@@ -1,3 +1,4 @@
+// src/server/api/enrollments/enrollment.schema.ts
 import mongoose from 'mongoose';
 
 const enrollmentRequestSchema = new mongoose.Schema({
@@ -26,6 +27,7 @@ const enrollmentRequestSchema = new mongoose.Schema({
     ref: 'Class'
   },
   adminNotes: String,
+  
   registrationFeePaid: {
     type: Boolean,
     default: false
@@ -35,4 +37,4 @@ const enrollmentRequestSchema = new mongoose.Schema({
   timestamps: true
 });
 
-export default mongoose.models.Enrollment || mongoose.model('Enrollement', enrollmentRequestSchema);
+export default mongoose.models.Enrollment || mongoose.model('Enrollment', enrollmentRequestSchema);

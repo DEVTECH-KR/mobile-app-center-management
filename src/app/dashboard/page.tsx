@@ -1,27 +1,32 @@
-
+// src/app/dashboard/page.tsx
 'use client';
 
 import { PaymentStatusCard } from "@/components/dashboard/payment-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_USERS, MOCK_COURSES, MOCK_EVENTS, MOCK_PAYMENTS } from "@/lib/mock-data";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, Calendar } from "lucide-react";
-
-// In a real app, this would come from an auth context.
-const currentUser = MOCK_USERS.admin;
+import { useAuth } from "@/lib/auth";
+// Assume MOCK_COURSES, MOCK_EVENTS, MOCK_PAYMENTS are replaced by real data fetches if needed
 
 export default function DashboardPage() {
-  const enrolledCourses = MOCK_COURSES.filter(course => currentUser.enrolledCourseIds?.includes(course.id));
-  const upcomingEvents = MOCK_EVENTS.filter(event => !event.isPast).slice(0, 2);
-  // In a real app, you'd fetch the primary payment details for the user
-  const paymentDetails = currentUser.id === 'user-1' ? MOCK_PAYMENTS : null;
+  const { user } = useAuth();
+
+  if (!user) {
+    return null;
+  }
+
+  // For real app, fetch enrolledCourses, events, payments based on user
+  // For now, assume placeholders or fetch
+  const enrolledCourses = []; // Replace with real fetch or user.enrolledCourses
+  const upcomingEvents = []; // Fetch
+  const paymentDetails = null; // Fetch
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold font-headline tracking-tight">
-          Welcome back, {currentUser.name.split(" ")[0]}!
+          Welcome back, {user.name.split(" ")[0]}!
         </h2>
         <p className="text-muted-foreground">
           Here&apos;s a summary of your activities.
@@ -29,13 +34,13 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {currentUser.role === 'student' && paymentDetails && (
+        {user.role === 'student' && paymentDetails && (
            <div className="lg:col-span-2">
             <PaymentStatusCard paymentDetails={paymentDetails}/>
            </div>
         )}
        
-        {currentUser.role === 'student' ? (
+        {user.role === 'student' ? (
             <div className="space-y-6">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">

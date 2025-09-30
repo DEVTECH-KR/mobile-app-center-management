@@ -1,4 +1,4 @@
-
+// src/app/dashboard/enrollments/page.tsx
 'use client';
 import {
   Table,
@@ -19,14 +19,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MOCK_ENROLLMENT_REQUESTS, MOCK_USERS } from "@/lib/mock-data";
 import type { EnrollmentRequest, EnrollmentStatus, User } from "@/lib/types";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
-
-
-const allUsers = Object.values(MOCK_USERS);
+import { useAuth } from "@/lib/auth";
+import { Loader2 } from "lucide-react";
+import { AdminEnrollmentManager } from "@/components/enrollments/admin-enrollment-manager";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const statusVariant: Record<EnrollmentStatus, { variant: "default" | "secondary" | "outline" | "destructive", icon: React.ElementType }> = {
     approved: { variant: "default", icon: CheckCircle },
@@ -34,132 +34,140 @@ const statusVariant: Record<EnrollmentStatus, { variant: "default" | "secondary"
     rejected: { variant: "destructive", icon: XCircle },
 }
 
-// In a real app, this would come from an auth context
-const userRole = MOCK_USERS.admin.role;
-
 export default function EnrollmentRequestsPage() {
-    const [requests, setRequests] = useState<EnrollmentRequest[]>(MOCK_ENROLLMENT_REQUESTS);
+    const { user } = useAuth();
+    const [requests, setRequests] = useState<EnrollmentRequest[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedRequest, setSelectedRequest] = useState<EnrollmentRequest | null>(null);
     
-    const updateRequestStatus = (requestId: string, status: EnrollmentStatus) => {
-        setRequests(prev => prev.map(r => r.id === requestId ? {...r, status } : r));
-    }
-    
+    useEffect(() => {
+        if (user) {
+            fetchRequests();
+        }
+    }, [user]);
+
+    const fetchRequests = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch('/api/enrollments');
+            if (!response.ok) throw new Error();
+            const data = await response.json();
+            setRequests(data);
+        } catch {
+            // Handle error
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const filteredRequests = useMemo(() => {
         return requests.filter(request => {
-            const user = allUsers.find(u => u.id === request.userId);
-            if (!user) return false;
-            return user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                   user.email.toLowerCase().includes(searchTerm.toLowerCase())
+            return request.studentId.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                   request.studentId.email.toLowerCase().includes(searchTerm.toLowerCase())
         });
     }, [requests, searchTerm]);
 
+    if (isLoading) {
+        return <Loader2 className="animate-spin" />;
+    }
 
-    if (userRole !== 'admin') {
+    if (user?.role !== 'admin') {
         return (
             <div className="flex items-center justify-center h-full">
                 <p className="text-muted-foreground">You do not have permission to access this page.</p>
             </div>
-        )
+        );
     }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-            <h2 className="text-3xl font-bold font-headline tracking-tight">
-            Enrollment Requests
-            </h2>
-            <p className="text-muted-foreground">
-                View and process new student enrollment requests.
-            </p>
-        </div>
-      </div>
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-3xl font-bold font-headline tracking-tight">
+                    Enrollment Requests
+                </h2>
+                <p className="text-muted-foreground">
+                    Manage student enrollment requests for courses.
+                </p>
+            </div>
 
-      <div className="mb-4 flex items-center justify-between">
-          <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
-              <Input
-                placeholder="Filter by student name or email..."
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-          </div>
-      </div>
-      
-      <div className="rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Requester</TableHead>
-              <TableHead>Course</TableHead>
-              <TableHead>Request Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRequests.map((request) => {
-              const user = allUsers.find((u) => u.id === request.userId);
-              const { icon: StatusIcon, variant: statusBadgeVariant } = statusVariant[request.status];
+            <div className="flex items-center gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Search by name or email..."
+                        className="w-full rounded-lg bg-background pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
 
-              if (!user) return null;
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Course</TableHead>
+                            <TableHead>Request Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredRequests.map((request) => {
+                            const StatusIcon = statusVariant[request.status].icon;
+                            const statusBadgeVariant = statusVariant[request.status].variant;
 
-              return(
-                <TableRow key={request.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={user.avatarUrl} alt={user.name} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {user.email}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{request.courseTitle}</TableCell>
-                  <TableCell>{format(new Date(request.requestDate as string), "MMM d, yyyy 'at' h:mm a")}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusBadgeVariant} className="capitalize flex items-center gap-1.5">
-                        <StatusIcon className="h-3.5 w-3.5" />
-                        {request.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {request.status === 'pending' ? (
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => updateRequestStatus(request.id!, 'approved')}>
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Approve
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateRequestStatus(request.id!, 'rejected')} className="text-destructive">
-                                <XCircle className="mr-2 h-4 w-4" />
-                                Reject
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    ) : (
-                        <Button variant="outline" size="sm" disabled>Processed</Button>
+                            return (
+                                <TableRow key={request._id}>
+                                    <TableCell>
+                                        <div className="flex items-center space-x-3">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={request.studentId.avatarUrl} />
+                                                <AvatarFallback>{request.studentId.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <div className="font-medium">{request.studentId.name}</div>
+                                                <div className="text-sm text-muted-foreground">{request.studentId.email}</div>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{request.courseId.title}</TableCell>
+                                    <TableCell>{format(request.requestDate, "MMM d, yyyy 'at' h:mm a")}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={statusBadgeVariant} className="capitalize flex items-center gap-1.5">
+                                            <StatusIcon className="h-3.5 w-3.5" />
+                                            {request.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="outline" onClick={() => setSelectedRequest(request)}>
+                                            <FilePen className="mr-2 h-4 w-4" />
+                                            Manage
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+            </div>
+
+            <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
+                <DialogContent>
+                    {selectedRequest && (
+                        <AdminEnrollmentManager 
+                            enrollment={selectedRequest}
+                            onStatusUpdate={() => {
+                                fetchRequests();
+                                setSelectedRequest(null);
+                            }}
+                        />
                     )}
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
-  );
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
 }

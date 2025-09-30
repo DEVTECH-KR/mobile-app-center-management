@@ -1,3 +1,4 @@
+// src/server/api/courses/course.controller.ts
 import { NextResponse } from 'next/server';
 import { CourseService } from './course.service';
 import { z } from 'zod';

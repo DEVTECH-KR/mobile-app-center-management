@@ -1,7 +1,6 @@
-
+// src/app/dashboard/profile/page.tsx
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MOCK_USERS } from "@/lib/mock-data";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
@@ -11,18 +10,16 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from "@/hooks/use-toast";
 import { FileUp, Loader2, X } from "lucide-react";
 import type { User } from "@/lib/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from "next/image";
-
-// In a real app, this would come from an auth context
-const currentUser = MOCK_USERS.admin;
+import { useAuth } from "@/lib/auth";
+import { Label } from "@/components/ui/label";
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().email(), // Will be read-only
   avatarUrl: z.string().url().optional().nullable(),
   gender: z.enum(["male", "female", "other"]).optional(),
   nationality: z.string().optional(),
@@ -47,25 +44,27 @@ const passwordFormSchema = z.object({
 
 
 export default function ProfilePage() {
-    const [user, setUser] = useState<User>(currentUser);
-    const [imagePreview, setImagePreview] = useState<string | null>(user.avatarUrl || null);
+    const { user: authUser, setAuthUser } = useAuth(); 
+    const [user, setUser] = useState<User | null>(authUser);
+    const [imagePreview, setImagePreview] = useState<string | null>(user?.avatarUrl || null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { toast } = useToast();
 
     const form = useForm<z.infer<typeof profileFormSchema>>({
         resolver: zodResolver(profileFormSchema),
         defaultValues: {
-            name: user.name,
-            email: user.email,
-            avatarUrl: user.avatarUrl ?? null,
-            gender: user.gender,
-            nationality: user.nationality,
-            otherNationality: user.otherNationality,
-            educationLevel: user.educationLevel,
-            university: user.university,
-            address: user.address,
-            phone: user.phone,
+            name: user?.name || '',
+            avatarUrl: user?.avatarUrl ?? null,
+            gender: user?.gender,
+            nationality: user?.nationality,
+            otherNationality: user?.otherNationality,
+            educationLevel: user?.educationLevel,
+            university: user?.university,
+            address: user?.address,
+            phone: user?.phone,
         },
+        mode: "onChange",
     });
 
     const passwordForm = useForm<z.infer<typeof passwordFormSchema>>({
@@ -79,6 +78,24 @@ export default function ProfilePage() {
 
     const nationality = form.watch("nationality");
 
+    useEffect(() => {
+        if (user) {
+        console.log('Resetting form with user data:', user); 
+        form.reset({
+            name: user.name || '',
+            avatarUrl: user.avatarUrl ?? null,
+            gender: user.gender,
+            nationality: user.nationality,
+            otherNationality: user.otherNationality,
+            educationLevel: user.educationLevel,
+            university: user.university,
+            address: user.address,
+            phone: user.phone,
+        });
+        setImagePreview(user.avatarUrl || null);
+        }
+    }, [user]);
+
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
@@ -86,7 +103,8 @@ export default function ProfilePage() {
             reader.onloadend = () => {
                 const result = reader.result as string;
                 setImagePreview(result);
-                form.setValue('avatarUrl', result, { shouldValidate: true });
+                form.setValue("avatarUrl", result);
+                console.log('Image changed, form dirty?', form.formState.isDirty);
             };
             reader.readAsDataURL(file);
         }
@@ -94,237 +112,335 @@ export default function ProfilePage() {
 
     const removeImage = () => {
         setImagePreview(null);
-        form.setValue('avatarUrl', null, { shouldValidate: true });
+        form.setValue("avatarUrl", null);
+        console.log('Image removed, form dirty?', form.formState.isDirty);
     };
 
-    function onProfileSubmit(values: z.infer<typeof profileFormSchema>) {
-        // Simulate an API call
-        form.handleSubmit(() => {
-            setTimeout(() => {
-                const updatedUser = { ...user, ...values };
-                setUser(updatedUser); // Update local state
-                toast({
-                    title: "Profile Updated",
-                    description: "Your profile information has been successfully saved.",
-                });
-                form.reset(values); // This resets the "dirty" state of the form
-            }, 500);
-        })()
-    }
-    
-     function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
-        // Simulate an API call to change password
-        // In a real app, this would use Firebase Auth functions to re-authenticate and update password.
-        setTimeout(() => {
-            console.log("Password change requested:", values);
+    const handleFormSubmit = form.handleSubmit((values) => {
+      console.log('Form submit triggered with values:', values);
+      console.log('Form dirty state:', form.formState.isDirty); 
+      console.log('Form errors:', form.formState.errors);
+      onSubmit(values);
+    }, (errors) => {
+      console.log('Validation errors:', errors);
+      toast({
+        variant: "destructive",
+        title: "Validation Failed",
+        description: "Please fix the errors in the form.",
+      });
+    });
+
+    async function onSubmit(values: z.infer<typeof profileFormSchema>) {
+        setIsSubmitting(true);
+        try {
+            const token = localStorage.getItem('token');
+            console.log('Token being sent:', token ? 'Present' : 'Missing'); // DEBUG: Safer log (don't log full token).
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+
+            const response = await fetch('/api/auth/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(values),
+            });
+
+            console.log('Response status:', response.status); // DEBUG: Fetch success?
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to update profile');
+            }
+
+            const updatedUser = await response.json();
+            setUser(updatedUser);
+            setAuthUser({ ...updatedUser, id: updatedUser._id });
+
             toast({
-                title: "Password Updated",
-                description: "Your password has been successfully changed.",
+                title: "Profile Updated",
+                description: "Your profile has been successfully updated.",
+            });
+  
+        } catch (error: any) {
+            console.error('Full error in onSubmit:', error); // DEBUG.
+            toast({
+                variant: "destructive",
+                title: "Update Failed",
+                description: error.message || "An error occurred while updating your profile.",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    async function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+
+            const response = await fetch('/api/auth/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    currentPassword: values.currentPassword,
+                    newPassword: values.newPassword
+                }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to change password');
+            }
+
+            toast({
+                title: "Password Changed",
+                description: "Your password has been successfully updated.",
             });
             passwordForm.reset();
-        }, 500);
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Password Change Failed",
+                description: error.message || "An error occurred while changing your password.",
+            });
+        }
     }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold font-headline tracking-tight">
-          My Profile
-        </h2>
-        <p className="text-muted-foreground">
-          View and update your personal and security information.
-        </p>
-      </div>
+    if (!user) {
+        return <div>Loading profile...</div>; 
+    }
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-2">
-                <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
-                <CardDescription>Manage your public profile and personal details.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onProfileSubmit)} className="space-y-8">
-                             <div className="space-y-2">
-                                <FormLabel>Profile Picture</FormLabel>
-                                <div className="flex items-center gap-4">
-                                     <Avatar className="h-20 w-20">
-                                        <AvatarImage src={imagePreview || undefined} alt={user.name} />
-                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                        {imagePreview ? (
-                                            <div className="relative group aspect-square w-24">
-                                                <Image src={imagePreview} alt="Image preview" fill className="object-cover rounded-md" />
-                                                <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={removeImage}>
-                                                    <X className="h-3 w-3" />
-                                                </Button>
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-3xl font-bold font-headline tracking-tight">My Profile</h2>
+                <p className="text-muted-foreground">Manage your personal information and security settings.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-2">
+                    <CardHeader>
+                        <CardTitle>Personal Information</CardTitle>
+                        <CardDescription>Update your profile details.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Form {...form}>
+                            <form onSubmit={handleFormSubmit} className="space-y-6"> {/* CHANGE: Use wrapper for logs. */}
+                                {/* Rest of form unchanged—fields, image upload, etc. */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-6">
+                                        <FormItem>
+                                            <FormLabel>Profile Picture</FormLabel>
+                                            <div className="flex items-center gap-4">
+                                                <Avatar className="h-20 w-20">
+                                                    <AvatarImage src={imagePreview || undefined} />
+                                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="space-y-2">
+                                                    <Button type="button" variant="outline" onClick={() => document.getElementById('avatar-upload')?.click()}>
+                                                        <FileUp className="mr-2 h-4 w-4" /> Upload New
+                                                    </Button>
+                                                    {imagePreview && (
+                                                        <Button type="button" variant="ghost" size="sm" onClick={removeImage}>
+                                                            <X className="mr-2 h-4 w-4" /> Remove
+                                                        </Button>
+                                                    )}
+                                                    <input
+                                                        id="avatar-upload"
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={handleFileChange}
+                                                    />
+                                                </div>
                                             </div>
-                                        ) : (
-                                            <div className="relative">
-                                                <Button type="button" variant="outline" asChild className="cursor-pointer">
-                                                    <div><FileUp className="mr-2 h-4 w-4" /> Upload</div>
-                                                </Button>
-                                                <Input id="file-upload" type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleFileChange} accept="image/*"/>
-                                            </div>
+                                            <FormDescription>Accepted formats: JPG, PNG, GIF. Max size: 2MB</FormDescription>
+                                        </FormItem>
+                                        
+                                        <FormField control={form.control} name="name" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Full Name</FormLabel>
+                                                <FormControl><Input {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        
+                                        <FormItem>
+                                            <FormLabel>Email Address</FormLabel>
+                                            <Input value={user.email} disabled />
+                                            <FormDescription>Your email cannot be changed.</FormDescription>
+                                        </FormItem>
+                                        
+                                        <FormField control={form.control} name="gender" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Gender</FormLabel>
+                                                <FormControl>
+                                                    <RadioGroup 
+                                                        onValueChange={field.onChange} 
+                                                        defaultValue={field.value}
+                                                        className="flex space-x-4"
+                                                    >
+                                                        <div className="flex items-center space-x-2">
+                                                            <RadioGroupItem value="male" id="male" />
+                                                            <Label htmlFor="male">Male</Label>
+                                                        </div>
+                                                        <div className="flex items-center space-x-2">
+                                                            <RadioGroupItem value="female" id="female" />
+                                                            <Label htmlFor="female">Female</Label>
+                                                        </div>
+                                                        <div className="flex items-center space-x-2">
+                                                            <RadioGroupItem value="other" id="other" />
+                                                            <Label htmlFor="other">Other</Label>
+                                                        </div>
+                                                    </RadioGroup>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                    </div>
+                                    
+                                    <div className="space-y-6">
+                                        <FormField control={form.control} name="nationality" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Nationality</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select your nationality" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="Congolese">Congolese</SelectItem>
+                                                        <SelectItem value="Burundian">Burundian</SelectItem>
+                                                        <SelectItem value="Rwandan">Rwandan</SelectItem>
+                                                        <SelectItem value="other">Other</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        
+                                        {nationality === 'other' && (
+                                            <FormField control={form.control} name="otherNationality" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Specify Nationality</FormLabel>
+                                                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}/>
                                         )}
+                                        
+                                        <FormField control={form.control} name="educationLevel" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Education Level</FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select your education level" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="High School">High School</SelectItem>
+                                                        <SelectItem value="Bachelors">Bachelor's Degree</SelectItem>
+                                                        <SelectItem value="Masters">Master's Degree</SelectItem>
+                                                        <SelectItem value="Doctorate">Doctorate</SelectItem>
+                                                        <SelectItem value="Other">Other</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        
+                                        <FormField control={form.control} name="university" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Name of University (Optional)</FormLabel>
+                                                <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
                                     </div>
                                 </div>
-                                <FormField control={form.control} name="avatarUrl" render={({ field }) => (
-                                    <FormItem className="hidden">
-                                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                                    </FormItem>
-                                )}/>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FormField control={form.control} name="name" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Full Name</FormLabel>
-                                        <FormControl><Input {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-
-                                <FormField control={form.control} name="email" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Email Address</FormLabel>
-                                        <FormControl><Input {...field} readOnly className="focus-visible:ring-0 focus-visible:ring-offset-0 bg-muted cursor-not-allowed" /></FormControl>
-                                        <FormDescription>Your email address cannot be changed.</FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
                                 
-                                <FormField control={form.control} name="phone" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Phone Number</FormLabel>
-                                        <FormControl><Input type="tel" {...field} value={field.value ?? ''} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-
-                                 <FormField control={form.control} name="address" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Full Address</FormLabel>
-                                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-                                
-                                <FormField control={form.control} name="gender" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Gender</FormLabel>
-                                        <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4 pt-2">
-                                            <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="male" /></FormControl><FormLabel className="font-normal">Male</FormLabel></FormItem>
-                                            <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="female" /></FormControl><FormLabel className="font-normal">Female</FormLabel></FormItem>
-                                            <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="other" /></FormControl><FormLabel className="font-normal">Other</FormLabel></FormItem>
-                                        </RadioGroup>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-                                
-                                 <FormField control={form.control} name="nationality" render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Nationality</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Select nationality" /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="congolese">Congolese</SelectItem>
-                                                <SelectItem value="burundian">Burundian</SelectItem>
-                                                <SelectItem value="other">Other</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}/>
-                                
-                                {nationality === 'other' && (
-                                    <FormField control={form.control} name="otherNationality" render={({ field }) => (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <FormField control={form.control} name="address" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Please Specify Nationality</FormLabel>
+                                            <FormLabel>Address (Optional)</FormLabel>
                                             <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}/>
-                                )}
+                                    
+                                    <FormField control={form.control} name="phone" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Phone Number (Optional)</FormLabel>
+                                            <FormControl><Input type="tel" {...field} value={field.value ?? ''} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                </div>
                                 
-                                <FormField control={form.control} name="educationLevel" render={({ field }) => (
+                                <div className="flex justify-end pt-4">
+                                    {/* CHANGE: Remove isDirty check temporarily for testing—always enable button.
+                                       Re-add after confirming submit works: disabled={isSubmitting} */}
+                                    <Button type="submit" disabled={isSubmitting}>
+                                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Save Changes
+                                    </Button>
+                                </div>
+                            </form>
+                    </Form>
+                    </CardContent>
+                </Card>
+                
+                <Card>
+                     <CardHeader>
+                        <CardTitle>Security</CardTitle>
+                        <CardDescription>Change your password.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <Form {...passwordForm}>
+                            <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
+                                 <FormField control={passwordForm.control} name="currentPassword" render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Level of Education</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="none">None</SelectItem>
-                                                <SelectItem value="high-school">High school</SelectItem>
-                                                <SelectItem value="bachelors">Bachelor's</SelectItem>
-                                                <SelectItem value="masters">Master's</SelectItem>
-                                                <SelectItem value="doctorate">Doctorate</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}/>
-                                
-                                <FormField control={form.control} name="university" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Name of University (Optional)</FormLabel>
-                                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                                        <FormLabel>Current Password</FormLabel>
+                                        <FormControl><Input type="password" {...field} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
-                            </div>
-                            
-                            <div className="flex justify-end pt-4">
-                                <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
-                                    {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Save Changes
-                                </Button>
-                            </div>
-                        </form>
-                </Form>
-                </CardContent>
-            </Card>
-            
-            <Card>
-                 <CardHeader>
-                    <CardTitle>Security</CardTitle>
-                    <CardDescription>Change your password.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <Form {...passwordForm}>
-                        <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
-                             <FormField control={passwordForm.control} name="currentPassword" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Current Password</FormLabel>
-                                    <FormControl><Input type="password" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                            <FormField control={passwordForm.control} name="newPassword" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>New Password</FormLabel>
-                                    <FormControl><Input type="password" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                             <FormField control={passwordForm.control} name="confirmPassword" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Confirm New Password</FormLabel>
-                                    <FormControl><Input type="password" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                            <div className="flex justify-end">
-                                <Button type="submit" variant="secondary" disabled={passwordForm.formState.isSubmitting || !passwordForm.formState.isDirty}>
-                                    {passwordForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Change Password
-                                </Button>
-                            </div>
-                        </form>
-                     </Form>
-                </CardContent>
-            </Card>
+                                <FormField control={passwordForm.control} name="newPassword" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>New Password</FormLabel>
+                                        <FormControl><Input type="password" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                 <FormField control={passwordForm.control} name="confirmPassword" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Confirm New Password</FormLabel>
+                                        <FormControl><Input type="password" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <div className="flex justify-end">
+                                    <Button type="submit" variant="secondary" disabled={passwordForm.formState.isSubmitting || !passwordForm.formState.isDirty}>
+                                        {passwordForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Change Password
+                                    </Button>
+                                </div>
+                            </form>
+                         </Form>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
-    </div>
-  );
+    );
 }

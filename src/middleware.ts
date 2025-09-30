@@ -1,12 +1,17 @@
+// src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { authMiddleware } from '@/server/middleware/auth.middleware';
+import { authMiddleware } from './server/middleware/auth.middleware';
 
 export async function middleware(request: NextRequest) {
-  // Protect all routes under /api except auth endpoints
-  if (request.nextUrl.pathname.startsWith('/api') &&
-      !request.nextUrl.pathname.startsWith('/api/auth/login') &&
-      !request.nextUrl.pathname.startsWith('/api/auth/register')) {
+  const pathname = request.nextUrl.pathname;
+
+  // protège /api/* sauf endpoints publics explicitement listés
+  if (
+    pathname.startsWith('/api') &&
+    !pathname.startsWith('/api/auth/login') &&
+    !pathname.startsWith('/api/auth/register')
+  ) {
     return authMiddleware(request);
   }
 
@@ -14,5 +19,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: ['/api/:path*'],
 };

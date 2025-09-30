@@ -1,3 +1,4 @@
+// src/server/api/enrollments/enrollment.service.ts
 import { Types } from 'mongoose';
 import EnrollmentRequest from './enrollment.schema';
 import User from '../auth/user.schema';
@@ -38,7 +39,7 @@ export class EnrollmentService {
 
     // Populate and return the created request
     return await enrollmentRequest.populate([
-      { path: 'studentId', select: 'name email' },
+      { path: 'studentId', select: 'name email avatarUrl' },
       { path: 'courseId', select: 'title price' }
     ]);
   }
@@ -50,7 +51,7 @@ export class EnrollmentService {
     }
 
     const request = await EnrollmentRequest.findById(requestId)
-      .populate('studentId', 'name email')
+      .populate('studentId', 'name email avatarUrl')
       .populate('courseId', 'title price')
       .populate('assignedClassId', 'name');
 
@@ -66,33 +67,25 @@ export class EnrollmentService {
     return await EnrollmentRequest.find({ studentId })
       .populate('courseId', 'title price')
       .populate('assignedClassId', 'name')
-      .sort({ requestDate: -1 });
+      .sort({ requestDate: 'desc' });
   }
 
-  // Get all enrollment requests (admin only)
-  static async getAllRequests(filter: {
-    status?: 'pending' | 'approved' | 'rejected';
-    courseId?: string;
-  } = {}) {
+  // Get all enrollment requests with filters
+  static async getAllRequests(filter: { status?: string; courseId?: string } = {}) {
     const query: any = {};
+    
     if (filter.status) query.status = filter.status;
     if (filter.courseId) query.courseId = filter.courseId;
 
     return await EnrollmentRequest.find(query)
-      .populate('studentId', 'name email')
+      .populate('studentId', 'name email avatarUrl')
       .populate('courseId', 'title price')
       .populate('assignedClassId', 'name')
-      .sort({ requestDate: -1 });
+      .sort({ requestDate: 'desc' });
   }
 
   // Approve enrollment request
-  static async approveRequest(
-    requestId: string,
-    adminData: {
-      classId: string;
-      adminNotes?: string;
-    }
-  ) {
+  static async approveRequest(requestId: string, adminData: { classId: string; adminNotes?: string }) {
     const request = await EnrollmentRequest.findById(requestId);
     if (!request) {
       throw new Error('Enrollment request not found');
@@ -102,18 +95,17 @@ export class EnrollmentService {
       throw new Error(`Cannot approve request with status: ${request.status}`);
     }
 
-    // Update request status
-    request.status = 'approved';
-    request.approvalDate = new Date();
-    request.assignedClassId = new Types.ObjectId(adminData.classId);
-    if (adminData.adminNotes) {
-      request.adminNotes = adminData.adminNotes;
+    if (!request.registrationFeePaid) {
+      throw new Error('Registration fee must be paid before approval');
     }
 
-    // Save the updated request
+    request.status = 'approved';
+    request.approvalDate = new Date();
+    request.assignedClassId = adminData.classId;
+    request.adminNotes = adminData.adminNotes;
     await request.save();
 
-    // Update user's enrolled courses
+    // Update user with enrolled course
     await User.findByIdAndUpdate(request.studentId, {
       $push: {
         enrolledCourses: {
@@ -122,12 +114,15 @@ export class EnrollmentService {
           status: 'approved',
           enrollmentDate: request.requestDate,
           approvalDate: request.approvalDate,
-        }
+          registrationFeePaid: true,
+        },
+        enrolledCourseIds: request.courseId,
+        classIds: adminData.classId
       }
     });
 
     return await request.populate([
-      { path: 'studentId', select: 'name email' },
+      { path: 'studentId', select: 'name email avatarUrl' },
       { path: 'courseId', select: 'title price' },
       { path: 'assignedClassId', select: 'name' }
     ]);
@@ -149,7 +144,7 @@ export class EnrollmentService {
     await request.save();
 
     return await request.populate([
-      { path: 'studentId', select: 'name email' },
+      { path: 'studentId', select: 'name email avatarUrl' },
       { path: 'courseId', select: 'title price' }
     ]);
   }
@@ -163,6 +158,10 @@ export class EnrollmentService {
 
     if (request.registrationFeePaid) {
       throw new Error('Registration fee already paid');
+    }
+
+    if (request.status !== 'pending') {
+      throw new Error('Can only record payment for pending requests');
     }
 
     request.registrationFeePaid = true;

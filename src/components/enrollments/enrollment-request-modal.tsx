@@ -1,12 +1,12 @@
 // src/components/enrollments/enrollment-request-modal.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle } from "lucide-react";
-import { Course } from "@/lib/types";
+import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { Course, CenterInfo } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 interface EnrollmentRequestModalProps {
@@ -23,51 +23,63 @@ export function EnrollmentRequestModal({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [centerInfo, setCenterInfo] = useState<CenterInfo | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Fetch center info
+      fetch('/api/settings')
+        .then(res => res.json())
+        .then(data => setCenterInfo(data))
+        .catch(() => {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load center information",
+          });
+        });
+    }
+  }, [isOpen, toast]);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/enrollments', {
+      await fetch('/api/enrollments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           courseId: course.id,
-          // In a real app, studentId would come from auth context
-          studentId: 'current-user-id',
         }),
+      }).then(res => {
+        if (!res.ok) throw new Error('Failed');
+        return res.json();
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to submit enrollment request');
-      }
 
       setIsSuccess(true);
       toast({
-        title: "Success!",
-        description: "Your enrollment request has been submitted.",
+        title: "Enrollment Request Submitted",
+        description: "Your request has been received successfully.",
       });
-
-      // Close modal after 2 seconds on success
-      setTimeout(() => {
-        onClose();
-        setIsSuccess(false);
-      }, 2000);
-
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to submit enrollment request. Please try again.",
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleClose = () => {
+    onClose();
+    setIsSuccess(false);
+    setIsSubmitting(false);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Confirm Enrollment Request</DialogTitle>
@@ -78,12 +90,22 @@ export function EnrollmentRequestModal({
         
         <div className="space-y-4">
           {isSuccess ? (
-            <Alert>
-              <CheckCircle className="h-4 w-4" />
-              <AlertDescription>
-                Your enrollment request has been submitted successfully!
-              </AlertDescription>
-            </Alert>
+            <div className="space-y-4">
+              <Alert variant="default">
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Your enrollment request has been submitted successfully. You have now reserved a spot for the training in {course.title}.
+                </AlertDescription>
+              </Alert>
+              <p>Please visit the center within 48 hours to pay the registration fee so that your spot can be definitively reserved.</p>
+              {centerInfo && (
+                <>
+                  <p><strong>Center address:</strong> {centerInfo.address}</p>
+                  <p><strong>Contact:</strong> {centerInfo.contact}</p>
+                </>
+              )}
+              <p>Once the payment has been made, you will have full access to our app: track your payments, download syllabi, access events, and more.</p>
+            </div>
           ) : (
             <>
               <div className="space-y-2">
@@ -108,14 +130,15 @@ export function EnrollmentRequestModal({
               </Alert>
 
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={onClose}>
+                <Button variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
                 <Button 
                   onClick={handleSubmit} 
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Submitting..." : "Submit Request"}
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Submit Request
                 </Button>
               </div>
             </>

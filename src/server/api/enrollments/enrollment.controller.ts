@@ -1,3 +1,4 @@
+// src/server/api/enrollments/enrollment.controller.ts
 import { NextResponse } from 'next/server';
 import { EnrollmentService } from './enrollment.service';
 import { rbacMiddleware } from '@/server/middleware/rbac.middleware';

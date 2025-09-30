@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { EnrollmentRequest } from "@/lib/types";
+import { Loader2 } from "lucide-react";
 
 interface AdminEnrollmentManagerProps {
   enrollment: EnrollmentRequest;
@@ -21,16 +22,46 @@ export function AdminEnrollmentManager({ enrollment, onStatusUpdate }: AdminEnro
   const [adminNotes, setAdminNotes] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
 
+  const handleRecordPayment = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/enrollments/${enrollment._id}/payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to record payment');
+      }
+
+      toast({
+        title: "Success",
+        description: "Payment recorded successfully.",
+      });
+
+      onStatusUpdate();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to record payment.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleStatusUpdate = async (status: 'approved' | 'rejected') => {
     setIsSubmitting(true);
     try {
-      const endpoint = status === 'approved' ? 
-        `/api/enrollments/${enrollment.id}/approve` :
-        `/api/enrollments/${enrollment.id}/reject`;
+      const endpoint = status === 'approved' 
+        ? `/api/enrollments/${enrollment._id}/approve`
+        : `/api/enrollments/${enrollment._id}/reject`;
 
-      const body = status === 'approved' ?
-        { classId: selectedClass, adminNotes } :
-        { adminNotes };
+      const body = status === 'approved'
+        ? { classId: selectedClass, adminNotes }
+        : { adminNotes };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -48,7 +79,6 @@ export function AdminEnrollmentManager({ enrollment, onStatusUpdate }: AdminEnro
       });
 
       onStatusUpdate();
-
     } catch (error) {
       toast({
         variant: "destructive",
@@ -77,6 +107,18 @@ export function AdminEnrollmentManager({ enrollment, onStatusUpdate }: AdminEnro
 
         {enrollment.status === 'pending' && (
           <>
+            {!enrollment.registrationFeePaid && (
+              <Button 
+                onClick={handleRecordPayment}
+                disabled={isSubmitting}
+                variant="secondary"
+                className="w-full"
+              >
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Record Registration Fee Payment
+              </Button>
+            )}
+
             <div className="space-y-2">
               <label className="text-sm font-medium">Assign Class</label>
               <Select onValueChange={setSelectedClass} value={selectedClass}>
@@ -84,7 +126,7 @@ export function AdminEnrollmentManager({ enrollment, onStatusUpdate }: AdminEnro
                   <SelectValue placeholder="Select a class..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Replace with actual class data */}
+                  {/* Replace with actual class data from API */}
                   <SelectItem value="class-1">Morning Class A</SelectItem>
                   <SelectItem value="class-2">Afternoon Class B</SelectItem>
                   <SelectItem value="class-3">Evening Class C</SelectItem>
@@ -102,7 +144,7 @@ export function AdminEnrollmentManager({ enrollment, onStatusUpdate }: AdminEnro
               </Button>
               <Button
                 onClick={() => handleStatusUpdate('approved')}
-                disabled={isSubmitting || !selectedClass || !adminNotes}
+                disabled={isSubmitting || !selectedClass || !adminNotes || !enrollment.registrationFeePaid}
               >
                 Approve
               </Button>

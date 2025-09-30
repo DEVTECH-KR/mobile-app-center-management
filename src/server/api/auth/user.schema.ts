@@ -1,3 +1,4 @@
+// src/server/api/auth/user.schema.ts
 import mongoose from 'mongoose';
 import { UserRole } from '@/lib/types';
 
@@ -80,9 +81,6 @@ const userSchema = new mongoose.Schema({
   }, {
     timestamps: true,
   });
-
-// Add indexes
-userSchema.index({ email: 1 });
 
 // Add methods
 userSchema.methods.toJSON = function() {

@@ -1,3 +1,4 @@
+// src/app/register/page.tsx
 import { RegisterForm } from "@/components/auth/register-form";
 import { AppHeader } from "@/components/layout/app-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

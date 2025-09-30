@@ -1,4 +1,4 @@
-
+// src/components/dashboard/user-nav.tsx
 "use client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,13 +11,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MOCK_USERS } from "@/lib/mock-data";
 import Link from "next/link";
-
-// In a real app, this data would come from an authentication context
-const user = MOCK_USERS.admin;
+import { useAuth } from "@/lib/auth";
 
 export function UserNav() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
