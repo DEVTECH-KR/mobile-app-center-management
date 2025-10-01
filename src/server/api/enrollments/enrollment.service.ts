@@ -192,4 +192,33 @@ export class EnrollmentService {
       return acc;
     }, {});
   }
+
+  // Dans EnrollmentService
+  static async getCourseStatus(studentId: string, courseId: string) {
+    // Vérifier que les IDs sont valides
+    if (!Types.ObjectId.isValid(studentId) || !Types.ObjectId.isValid(courseId)) {
+      throw new Error("Invalid studentId or courseId");
+    }
+
+    // Vérifier l’existence du cours
+    const course = await Course.findById(courseId);
+    if (!course) {
+      throw new Error("Course not found");
+    }
+
+    // Vérifier si une demande existe déjà
+    const enrollment = await EnrollmentRequest.findOne({ studentId, courseId });
+
+    if (!enrollment) {
+      return { status: "not_enrolled" }; // pas encore demandé
+    }
+
+    return {
+      status: enrollment.status, // pending, approved, rejected
+      registrationFeePaid: enrollment.registrationFeePaid,
+      requestDate: enrollment.requestDate,
+      approvalDate: enrollment.approvalDate,
+    };
+  }
+
 }

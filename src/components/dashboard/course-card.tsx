@@ -67,7 +67,7 @@ export function CourseCard({ course, userRole, isEnrolled, hasPendingRequest }: 
       <CardHeader className="p-0">
         <div className="relative h-48 w-full">
           <Image
-            src={course.imageUrl}
+            src={course.imageUrl || "/default-course.png"} 
             alt={course.title}
             fill
             className="object-cover"

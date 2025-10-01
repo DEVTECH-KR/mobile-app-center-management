@@ -20,14 +20,38 @@ export async function POST(req: Request) {
 export async function login(req: Request) {
   try {
     await connectDB();
+
     const body = await req.json();
-    console.log('Login body preview:', { email: body.email ? body.email.substring(0, 3) + '...' : 'missing' });
+    console.log('Login body preview:', {
+      email: body.email ? body.email.substring(0, 3) + '...' : 'missing'
+    });
+
     const { email, password } = body;
     const result = await AuthService.login(email, password);
-    console.log('Login success, token length:', result.token ? result.token.length : 'missing');
-    return NextResponse.json(result);
+
+    if (!result.token) {
+      return NextResponse.json({ error: 'Login failed, no token returned' }, { status: 401 });
+    }
+
+    console.log('Login success, token length:', result.token.length);
+
+    // Créer la réponse avec cookie HttpOnly
+    const response = NextResponse.json({
+      user: result.user,
+      token: result.token // Optionnel si tu veux aussi renvoyer le token dans le body
+    });
+
+    response.cookies.set('token', result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/', // accessible sur tout le site
+      maxAge: 60 * 60 * 24 * 7, // 7 jours
+    });
+
+    return response;
   } catch (error: any) {
-    console.error('Controller login error:', error); 
+    console.error('Controller login error:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 401 }

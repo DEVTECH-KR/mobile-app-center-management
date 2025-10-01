@@ -30,6 +30,7 @@ export type User = {
 
 export type Course = {
   id?: string; // Firestore will generate this
+  _id: string;
   title: string;
   description:string;
   price: number; // in FBU
@@ -37,8 +38,8 @@ export type Course = {
   days: string[];
   startTime: string;
   endTime: string;
-  imageUrl: string;
-  imageHint: string;
+  imageUrl?: string;
+  imageHint?: string;
   levels: string[]; // e.g., ['Beginner', 'Intermediate', 'Advanced']
 };
 

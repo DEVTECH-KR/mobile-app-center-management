@@ -1,5 +1,6 @@
-// Course Service: src/server/api/courses/course.service.ts
-import Course from './course.schema';
+// src/server/api/courses/course.service.ts
+import CourseModel from './course.schema';
+import type { Course } from '@/lib/types';
 import { Types } from 'mongoose';
 
 interface FilterOptions {
@@ -11,56 +12,46 @@ interface FilterOptions {
 }
 
 interface PaginationOptions {
-  page: number;
-  limit: number;
+  page?: number;
+  limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
 
 export class CourseService {
-  static async create(courseData: any) {
-    return await Course.create(courseData);
+  // ============================
+  // Créer un nouveau cours
+  // ============================
+  static async create(courseData: Course): Promise<Course> {
+    const course = await CourseModel.create(courseData);
+    return course.toObject();
   }
 
+  // ============================
+  // Récupérer tous les cours avec filtres et pagination
+  // ============================
   static async getAll(
-    filter: FilterOptions = {},
-    { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' }: PaginationOptions
+    filters: FilterOptions = {},
+    { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' }: PaginationOptions = {}
   ) {
     const query: any = {};
 
-    // Apply filters
-    if (filter.title) {
-      query.title = { $regex: filter.title, $options: 'i' };
-    }
-    if (filter.minPrice !== undefined) {
-      query.price = { ...query.price, $gte: filter.minPrice };
-    }
-    if (filter.maxPrice !== undefined) {
-      query.price = { ...query.price, $lte: filter.maxPrice };
-    }
-    if (filter.days?.length) {
-      query.days = { $in: filter.days };
-    }
-    if (filter.levels?.length) {
-      query.levels = { $in: filter.levels };
-    }
+    if (filters.title) query.title = { $regex: filters.title, $options: 'i' };
+    if (filters.minPrice !== undefined) query.price = { ...query.price, $gte: filters.minPrice };
+    if (filters.maxPrice !== undefined) query.price = { ...query.price, $lte: filters.maxPrice };
+    if (filters.days?.length) query.days = { $in: filters.days };
+    if (filters.levels?.length) query.levels = { $in: filters.levels };
 
-    // Calculate skip value for pagination
     const skip = (page - 1) * limit;
+    const sort: { [key: string]: 1 | -1 } = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
-    // Prepare sort object
-    const sort: { [key: string]: 1 | -1 } = {
-      [sortBy]: sortOrder === 'asc' ? 1 : -1
-    };
-
-    // Execute query with pagination
     const [courses, total] = await Promise.all([
-      Course.find(query)
+      CourseModel.find(query)
         .populate('teacherIds', 'name email')
         .sort(sort)
         .skip(skip)
         .limit(limit),
-      Course.countDocuments(query)
+      CourseModel.countDocuments(query)
     ]);
 
     return {
@@ -75,50 +66,42 @@ export class CourseService {
     };
   }
 
-  static async getById(id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new Error('Invalid course ID');
-    }
-    
-    const course = await Course.findById(id)
-      .populate('teacherIds', 'name email');
-      
-    if (!course) {
-      throw new Error('Course not found');
-    }
-    
-    return course;
+  // ============================
+  // Récupérer un cours par ID
+  // ============================
+  static async getById(id: string): Promise<Course> {
+    if (!Types.ObjectId.isValid(id)) throw new Error('Invalid course ID');
+
+    const course = await CourseModel.findById(id).populate('teacherIds', 'name email');
+    if (!course) throw new Error('Course not found');
+
+    return course.toObject();
   }
 
-  static async update(id: string, updateData: any) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new Error('Invalid course ID');
-    }
+  // ============================
+  // Mettre à jour un cours
+  // ============================
+  static async update(id: string, updateData: Partial<Course>): Promise<Course> {
+    if (!Types.ObjectId.isValid(id)) throw new Error('Invalid course ID');
 
-    const course = await Course.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('teacherIds', 'name email');
+    const course = await CourseModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true
+    }).populate('teacherIds', 'name email');
 
-    if (!course) {
-      throw new Error('Course not found');
-    }
-
-    return course;
+    if (!course) throw new Error('Course not found');
+    return course.toObject();
   }
 
-  static async delete(id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new Error('Invalid course ID');
-    }
+  // ============================
+  // Supprimer un cours
+  // ============================
+  static async delete(id: string): Promise<Course> {
+    if (!Types.ObjectId.isValid(id)) throw new Error('Invalid course ID');
 
-    const course = await Course.findByIdAndDelete(id);
-    
-    if (!course) {
-      throw new Error('Course not found');
-    }
+    const course = await CourseModel.findByIdAndDelete(id);
+    if (!course) throw new Error('Course not found');
 
-    return course;
+    return course.toObject();
   }
 }

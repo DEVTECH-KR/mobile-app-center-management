@@ -133,3 +133,30 @@ export async function getStatistics(request: Request) {
     );
   }
 }
+
+// Vérifier le statut d’un étudiant pour un cours
+export async function getCourseStatus(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const studentId = searchParams.get("studentId");
+  const courseId = searchParams.get("courseId");
+
+  if (!studentId || !courseId) {
+    return NextResponse.json(
+      { error: "studentId and courseId are required" },
+      { status: 400 }
+    );
+  }
+
+  // Seul l’étudiant concerné ou un admin peut voir ça
+  const rbacCheck = await rbacMiddleware(["student", "admin"])(request as any);
+  if (rbacCheck.status !== 200) {
+    return rbacCheck;
+  }
+
+  try {
+    const status = await EnrollmentService.getCourseStatus(studentId, courseId);
+    return NextResponse.json(status);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

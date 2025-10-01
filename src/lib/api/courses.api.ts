@@ -1,36 +1,13 @@
 // src/lib/api/courses.api.ts
-/**
- * Course API Utility Functions
- * Handles all HTTP requests related to courses
- */
+import type { Course, User } from '@/lib/types';
 
-// Helper to get auth token from localStorage
-const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
-};
-
-// Helper to create headers with auth token
-const getHeaders = (includeContentType: boolean = true): HeadersInit => {
+const getHeaders = (includeContentType = true): HeadersInit => {
   const headers: HeadersInit = {};
-  
-  const token = getAuthToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  
-  if (includeContentType) {
-    headers['Content-Type'] = 'application/json';
-  }
-  
+  if (includeContentType) headers['Content-Type'] = 'application/json';
   return headers;
 };
 
-// Course API Functions
 export const coursesApi = {
-  /**
-   * Fetch all courses with optional filters and pagination
-   */
   async getAll(params?: {
     page?: number;
     limit?: number;
@@ -43,221 +20,132 @@ export const coursesApi = {
     sortOrder?: 'asc' | 'desc';
   }) {
     const searchParams = new URLSearchParams();
-    
     if (params) {
       if (params.page) searchParams.append('page', params.page.toString());
       if (params.limit) searchParams.append('limit', params.limit.toString());
       if (params.title) searchParams.append('title', params.title);
       if (params.minPrice !== undefined) searchParams.append('minPrice', params.minPrice.toString());
       if (params.maxPrice !== undefined) searchParams.append('maxPrice', params.maxPrice.toString());
-      if (params.days) params.days.forEach(day => searchParams.append('days', day));
-      if (params.levels) params.levels.forEach(level => searchParams.append('levels', level));
+      params.days?.forEach(day => searchParams.append('days', day));
+      params.levels?.forEach(level => searchParams.append('levels', level));
       if (params.sortBy) searchParams.append('sortBy', params.sortBy);
       if (params.sortOrder) searchParams.append('sortOrder', params.sortOrder);
     }
-    
     const url = `/api/courses${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch courses');
-    }
-    
-    return response.json();
+    const res = await fetch(url, { headers: getHeaders(), credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to fetch courses');
+    return res.json();
   },
 
-  /**
-   * Fetch a single course by ID
-   */
   async getById(id: string) {
-    const response = await fetch(`/api/courses/${id}`);
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error('Course not found');
-      }
-      throw new Error('Failed to fetch course');
-    }
-    
-    return response.json();
+    const res = await fetch(`/api/courses/${id}`, { headers: getHeaders(), credentials: 'include' });
+    if (!res.ok) throw new Error(res.status === 404 ? 'Course not found' : 'Failed to fetch course');
+    return res.json();
   },
 
-  /**
-   * Create a new course (Admin only)
-   */
-  async create(courseData: {
-    title: string;
-    description: string;
-    price: number;
-    teacherIds: string[];
-    days: string[];
-    startTime: string;
-    endTime: string;
-    imageUrl: string;
-    imageHint?: string;
-    levels: string[];
-  }) {
-    const response = await fetch('/api/courses', {
+  async create(courseData: Partial<Course>) {
+    const res = await fetch('/api/courses', {
       method: 'POST',
       headers: getHeaders(),
+      credentials: 'include',
       body: JSON.stringify(courseData),
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
+    if (!res.ok) {
+      const error = await res.json();
       throw new Error(error.error || 'Failed to create course');
     }
-    
-    return response.json();
+    return res.json();
   },
 
-  /**
-   * Update an existing course (Admin only)
-   */
-  async update(id: string, courseData: Partial<{
-    title: string;
-    description: string;
-    price: number;
-    teacherIds: string[];
-    days: string[];
-    startTime: string;
-    endTime: string;
-    imageUrl: string;
-    imageHint?: string;
-    levels: string[];
-  }>) {
-    const response = await fetch(`/api/courses/${id}`, {
+  async update(id: string, courseData: Partial<Course>) {
+    const res = await fetch(`/api/courses/${id}`, {
       method: 'PUT',
       headers: getHeaders(),
+      credentials: 'include',
       body: JSON.stringify(courseData),
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      if (response.status === 404) {
-        throw new Error('Course not found');
-      }
-      throw new Error(error.error || 'Failed to update course');
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(res.status === 404 ? 'Course not found' : error.error || 'Failed to update course');
     }
-    
-    return response.json();
+    return res.json();
   },
 
-  /**
-   * Delete a course (Admin only)
-   */
   async delete(id: string) {
-    const response = await fetch(`/api/courses/${id}`, {
+    const res = await fetch(`/api/courses/${id}`, {
       method: 'DELETE',
-      headers: getHeaders(false),
+      headers: getHeaders(),
+      credentials: 'include',
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      if (response.status === 404) {
-        throw new Error('Course not found');
-      }
-      throw new Error(error.error || 'Failed to delete course');
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(res.status === 404 ? 'Course not found' : error.error || 'Failed to delete course');
     }
-    
-    return response.json();
+    return res.json();
   },
 };
 
-// User API Functions
 export const usersApi = {
-  /**
-   * Get current authenticated user
-   */
-  async getCurrentUser() {
-    const token = getAuthToken();
-    if (!token) {
-      return null;
-    }
-    
-    const response = await fetch('/api/auth/me', {
-      headers: getHeaders(false),
+  async getCurrentUser(): Promise<User | null> {
+    const res = await fetch('/api/auth/profile', {
+      headers: getHeaders(),
+      credentials: 'include', 
     });
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    return response.json();
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.user;
   },
 
-  /**
-   * Get users by role
-   */
   async getByRole(role: 'admin' | 'teacher' | 'student') {
-    const response = await fetch(`/api/users?role=${role}`, {
-      headers: getHeaders(false),
+    const res = await fetch(`/api/users?role=${role}`, {
+      headers: getHeaders(),
+      credentials: 'include',
     });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch users');
-    }
-    
-    return response.json();
+    if (!res.ok) throw new Error('Failed to fetch users');
+    return res.json();
   },
 };
 
-// Enrollment API Functions
 export const enrollmentApi = {
-  /**
-   * Submit enrollment request for a course
-   */
+  async getEnrollmentRequests(userId: string) {
+    const res = await fetch(`/api/enrollments?userId=${userId}`, {
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+    if (!res.ok) return null;
+    return res.json();
+  },
+
   async requestEnrollment(courseId: string) {
-    const response = await fetch('/api/enrollments', {
+    const res = await fetch('/api/enrollments', {
       method: 'POST',
       headers: getHeaders(),
+      credentials: 'include',
       body: JSON.stringify({ courseId }),
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
+    if (!res.ok) {
+      const error = await res.json();
       throw new Error(error.error || 'Failed to submit enrollment request');
     }
-    
-    return response.json();
+    return res.json();
   },
 
-  /**
-   * Check enrollment status for a course
-   */
   async checkStatus(courseId: string) {
-    const response = await fetch(`/api/enrollments?courseId=${courseId}`, {
-      headers: getHeaders(false),
+    const res = await fetch(`/api/enrollments?courseId=${courseId}`, {
+      headers: getHeaders(),
+      credentials: 'include',
     });
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    return response.json();
+    if (!res.ok) return null;
+    return res.json();
   },
 
-  /**
-   * Get all enrollment requests (Admin/Teacher only)
-   */
-  async getAll(params?: {
-    status?: 'pending' | 'approved' | 'rejected';
-    courseId?: string;
-  }) {
+  async getAll(params?: { status?: 'pending' | 'approved' | 'rejected'; courseId?: string }) {
     const searchParams = new URLSearchParams();
-    
     if (params?.status) searchParams.append('status', params.status);
     if (params?.courseId) searchParams.append('courseId', params.courseId);
-    
     const url = `/api/enrollments${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-    const response = await fetch(url, {
-      headers: getHeaders(false),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch enrollment requests');
-    }
-    
-    return response.json();
+    const res = await fetch(url, { headers: getHeaders(), credentials: 'include' });
+    if (!res.ok) throw new Error('Failed to fetch enrollment requests');
+    return res.json();
   },
 };
