@@ -87,7 +87,21 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['limited', 'full'],
     default: 'limited'
+  },
+
+  preferences: {
+    theme: {
+      type: String,
+      enum: ["light", "dark", "system"],
+      default: "system"
+    },
+    language: {
+      type: String,
+      enum: ["fr", "en"],
+      default: "fr"
+    }
   }
+
   }, {
     timestamps: true,
   });

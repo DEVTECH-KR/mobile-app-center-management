@@ -1,3 +1,4 @@
+// src/server/api/settings/center-settings.schema.ts
 import mongoose from 'mongoose';
 
 const centerSettingsSchema = new mongoose.Schema({

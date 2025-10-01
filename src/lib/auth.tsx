@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { UserRole } from '@/lib/types';
+import { useTheme } from "next-themes";
 
 interface User {
   id: string;
@@ -18,10 +19,15 @@ interface User {
   address?: string;
   phone?: string;
   avatarUrl?: string | null;
+  preferences?: {
+    theme?: "light" | "dark";
+    language?: "fr" | "en";
+  };
 }
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
@@ -48,7 +54,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const DEFAULT_INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
 
 export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
+  const { setTheme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('token');
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   // MODIF: timer d'inactivité et ref pour listeners
@@ -58,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   // Helper: logout propre
   const logout = () => {
     localStorage.removeItem('token');
+    setToken(null);
     setUser(null);
     console.log('User logged out (manual or token invalid).');
   };
@@ -99,9 +113,16 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
         address: data.address,
         phone: data.phone,
         avatarUrl: data.avatarUrl ?? null,
+        preferences: data.preferences || { theme: "light", language: "fr" }
       };
 
       setUser(mapped);
+
+      // ✅ Appliquer le thème de l’utilisateur
+      if (mapped.preferences?.theme) {
+        setTheme(mapped.preferences.theme);
+      }
+
       return mapped;
     } catch (err) {
       console.error('Profile fetch error:', err);
@@ -148,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       return;
     }
 
+    setToken(token);
     // fetch profile from backend (ensures data comes from DB — objective)
     (async () => {
       await fetchProfile(token);
@@ -176,6 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
 
     // store token
     localStorage.setItem('token', data.token);
+    setToken(data.token);
 
     // fetch profile from the server (prefer DB truth)
     const fetched = await fetchProfile(data.token);
@@ -202,6 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     // Optionally, store token and fetch profile (if server sends token immediately)
     if (data.token) {
       localStorage.setItem('token', data.token);
+      setToken(data.token);
       await fetchProfile(data.token);
     }
 
@@ -211,8 +235,11 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   // MODIF: setAuthUser permet au Profile page d'updater le state immédiatement
   const setAuthUser = (updatedUser: User) => {
     setUser(updatedUser);
-    // On évite d'écrire tout le profil en localStorage pour éviter QuotaExceeded.
-    // Si tu veux stocker une petite trace minimale (id, name, email, role) :
+
+    if (updatedUser.preferences?.theme) {
+      setTheme(updatedUser.preferences.theme);
+    }
+    
     try {
       const minimal = {
         id: updatedUser.id,
@@ -231,6 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     <AuthContext.Provider
       value={{
         user,
+        token,
         login,
         register,
         logout,

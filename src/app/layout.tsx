@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 import type { Metadata } from 'next';
 import React from 'react';
 import type { ReactNode } from 'react';
@@ -5,6 +6,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/lib/auth';
+import { UserThemeProvider } from '@/components/user-theme-provider';
 
 export const metadata: Metadata = {
   title: 'FFBF Training Hub',
@@ -31,12 +33,12 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            {children}
-            <Toaster />
-          </ThemeProvider>
-        </AuthProvider>
+      <AuthProvider>
+        <UserThemeProvider>
+          {children}
+          <Toaster />
+        </UserThemeProvider>
+      </AuthProvider>
       </body>
     </html>
   );

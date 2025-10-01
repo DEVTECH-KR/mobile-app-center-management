@@ -110,4 +110,18 @@ export class AuthService {
 
     return { message: 'Password changed successfully' };
   }  
+
+  static async updatePreferences(userId: string, preferences: { theme?: string; language?: string }) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Met à jour uniquement les champs présents
+    if (preferences.theme) user.preferences.theme = preferences.theme;
+    if (preferences.language) user.preferences.language = preferences.language;
+
+    await user.save();
+    return user.preferences;
+  }
 }

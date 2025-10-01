@@ -105,3 +105,21 @@ export async function changePassword(req: Request) {
     );
   }
 }
+
+export async function updatePreferences(req: Request) {
+  try {
+    await connectDB();
+    const userId = req.headers.get('userId');
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const updatedPreferences = await AuthService.updatePreferences(userId, body);
+
+    return NextResponse.json({ message: 'Preferences updated', preferences: updatedPreferences });
+  } catch (error: any) {
+    console.error('Controller updatePreferences error:', error);
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}
