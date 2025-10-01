@@ -18,9 +18,7 @@ export async function POST(req: Request) {
 }
 
 export async function login(req: Request) {
-  console.log('=== LOGIN ROUTE HIT ===');
   try {
-    console.log('Controller login called');
     await connectDB();
     const body = await req.json();
     console.log('Login body preview:', { email: body.email ? body.email.substring(0, 3) + '...' : 'missing' });

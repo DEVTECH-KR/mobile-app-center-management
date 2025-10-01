@@ -1,7 +1,8 @@
 // src/server/api/auth/auth.service.ts
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import User from './user.schema';
+import { User, Course, Class, Enrollment } from '../models';
+
 
 const JWT_SECRET = process.env.JWT_SECRET || '2bda842ae236aedf8bd7da1ee7998bdd0ec8d793afb9da5d6e371eb041f18f0facd41416f331a5c89608c2f3b62597f0401c7255d662b9c3834249b3b66b5225';
 

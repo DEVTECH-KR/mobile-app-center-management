@@ -9,7 +9,7 @@ import * as z from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { FileUp, Loader2, X } from "lucide-react";
-import type { User } from "@/lib/types";
+import type { User, UserRole } from "@/lib/types";
 import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -42,10 +42,29 @@ const passwordFormSchema = z.object({
     path: ["confirmPassword"],
 });
 
+type LocalUser = {
+    id: string;
+    _id?: string;
+    name: string;
+    email: string;
+    role: UserRole | string;
+    gender?: string | undefined; 
+    nationality?: string | null;
+    otherNationality?: string | null;
+    educationLevel?: string | null;
+    university?: string | null;
+    address?: string | null;
+    phone?: string | null;
+    avatarUrl?: string | null;
+};
 
 export default function ProfilePage() {
     const { user: authUser, setAuthUser } = useAuth(); 
-    const [user, setUser] = useState<User | null>(authUser);
+    const [user, setUser] = useState<LocalUser | null>(() => {
+        if (!authUser) return null;
+        return mapAuthUserToLocal(authUser);
+    });
+
     const [imagePreview, setImagePreview] = useState<string | null>(user?.avatarUrl || null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,13 +75,13 @@ export default function ProfilePage() {
         defaultValues: {
             name: user?.name || '',
             avatarUrl: user?.avatarUrl ?? null,
-            gender: user?.gender,
-            nationality: user?.nationality,
-            otherNationality: user?.otherNationality,
-            educationLevel: user?.educationLevel,
-            university: user?.university,
-            address: user?.address,
-            phone: user?.phone,
+            gender: normalizeGender(user?.gender),
+            nationality: user?.nationality ?? undefined,
+            otherNationality: user?.otherNationality ?? undefined,
+            educationLevel: user?.educationLevel ?? undefined,
+            university: user?.university ?? undefined,
+            address: user?.address ?? undefined,
+            phone: user?.phone ?? undefined,
         },
         mode: "onChange",
     });
@@ -78,23 +97,57 @@ export default function ProfilePage() {
 
     const nationality = form.watch("nationality");
 
+    /* MODIFIED: whenever the global authUser changes (login / refresh / setAuthUser), update local state + form */
     useEffect(() => {
-        if (user) {
-        console.log('Resetting form with user data:', user); 
-        form.reset({
-            name: user.name || '',
-            avatarUrl: user.avatarUrl ?? null,
-            gender: user.gender,
-            nationality: user.nationality,
-            otherNationality: user.otherNationality,
-            educationLevel: user.educationLevel,
-            university: user.university,
-            address: user.address,
-            phone: user.phone,
-        });
-        setImagePreview(user.avatarUrl || null);
+        if (!authUser) {
+            setUser(null);
+            return;
         }
-    }, [user]);
+
+        const mapped = mapAuthUserToLocal(authUser);
+        setUser(mapped);
+
+        // Reset react-hook-form fields using normalized values that match zod schema
+        form.reset({
+            name: mapped.name || '',
+            avatarUrl: mapped.avatarUrl ?? null,
+            gender: normalizeGender(mapped.gender),
+            nationality: mapped.nationality ?? undefined,
+            otherNationality: mapped.otherNationality ?? undefined,
+            educationLevel: mapped.educationLevel ?? undefined,
+            university: mapped.university ?? undefined,
+            address: mapped.address ?? undefined,
+            phone: mapped.phone ?? undefined,
+        });
+
+        setImagePreview(mapped.avatarUrl ?? null);
+    }, [authUser]);
+
+    /* Helper: accept any incoming gender string and only return union values expected by zod form */
+    function normalizeGender(g?: string | undefined) {
+        if (!g) return undefined;
+        return g === 'male' || g === 'female' || g === 'other' ? g : undefined;
+    }
+
+    /* Helper: map the authUser (which can have different shape) to our LocalUser */
+    function mapAuthUserToLocal(a: any): LocalUser {
+        const id = (a && (a.id ?? a._id ?? a._id?.toString())) || '';
+        return {
+            id,
+            _id: a._id ?? undefined,
+            name: a.name ?? '',
+            email: a.email ?? '',
+            role: a.role ?? 'student',
+            gender: a.gender ?? undefined,
+            nationality: a.nationality ?? null,
+            otherNationality: a.otherNationality ?? null,
+            educationLevel: a.educationLevel ?? null,
+            university: a.university ?? null,
+            address: a.address ?? null,
+            phone: a.phone ?? null,
+            avatarUrl: a.avatarUrl ?? null,
+        };
+    }
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -104,7 +157,6 @@ export default function ProfilePage() {
                 const result = reader.result as string;
                 setImagePreview(result);
                 form.setValue("avatarUrl", result);
-                console.log('Image changed, form dirty?', form.formState.isDirty);
             };
             reader.readAsDataURL(file);
         }
@@ -117,9 +169,6 @@ export default function ProfilePage() {
     };
 
     const handleFormSubmit = form.handleSubmit((values) => {
-      console.log('Form submit triggered with values:', values);
-      console.log('Form dirty state:', form.formState.isDirty); 
-      console.log('Form errors:', form.formState.errors);
       onSubmit(values);
     }, (errors) => {
       console.log('Validation errors:', errors);
@@ -134,7 +183,6 @@ export default function ProfilePage() {
         setIsSubmitting(true);
         try {
             const token = localStorage.getItem('token');
-            console.log('Token being sent:', token ? 'Present' : 'Missing'); // DEBUG: Safer log (don't log full token).
             if (!token) {
                 throw new Error('No authentication token found');
             }
@@ -148,16 +196,57 @@ export default function ProfilePage() {
                 body: JSON.stringify(values),
             });
 
-            console.log('Response status:', response.status); // DEBUG: Fetch success?
+
+            // MODIFIED: handle 401 explicitly to avoid silent failures & force logout
+            if (response.status === 401) {
+                // token invalid or expired
+                localStorage.removeItem('token');
+                toast({
+                    variant: 'destructive',
+                    title: 'Session Expirée',
+                    description: 'Your session has expired. Please log in again.',
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            console.log('Response status:', response.status);
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to update profile');
+                // try parse error body if available
+                const errorBody = await response.json().catch(() => ({}));
+                throw new Error(errorBody.error || 'Failed to update profile');
             }
 
             const updatedUser = await response.json();
-            setUser(updatedUser);
-            setAuthUser({ ...updatedUser, id: updatedUser._id });
+
+            // MODIFIED: update local page state (mapped) so form immediately reflects DB response
+            const mapped = mapAuthUserToLocal(updatedUser);
+            setUser(mapped);
+
+            try {
+                setAuthUser({
+                id: mapped.id,
+                name: mapped.name,
+                email: mapped.email,
+                role: mapped.role as UserRole,
+                } as any); 
+            } catch (e) {
+                console.warn('setAuthUser failed type-check, but update proceeds:', e);
+            }
+
+            // reset the form values to the updated ones (normalized)
+            form.reset({
+                name: mapped.name,
+                avatarUrl: mapped.avatarUrl ?? null,
+                gender: normalizeGender(mapped.gender),
+                nationality: mapped.nationality ?? undefined,
+                otherNationality: mapped.otherNationality ?? undefined,
+                educationLevel: mapped.educationLevel ?? undefined,
+                university: mapped.university ?? undefined,
+                address: mapped.address ?? undefined,
+                phone: mapped.phone ?? undefined,
+            });
 
             toast({
                 title: "Profile Updated",
@@ -195,8 +284,18 @@ export default function ProfilePage() {
                 }),
             });
 
+            if (response.status === 401) {
+                localStorage.removeItem('token');
+                toast({
+                    variant: 'destructive',
+                    title: 'Session Expirée',
+                    description: 'Your session has expired. Please log in again.',
+                });
+                return;
+            }
+
             if (!response.ok) {
-                const error = await response.json();
+                const error = await response.json().catch(() => ({}));
                 throw new Error(error.error || 'Failed to change password');
             }
 
@@ -205,6 +304,7 @@ export default function ProfilePage() {
                 description: "Your password has been successfully updated.",
             });
             passwordForm.reset();
+
         } catch (error: any) {
             toast({
                 variant: "destructive",
@@ -225,7 +325,7 @@ export default function ProfilePage() {
                 <h2 className="text-3xl font-bold font-headline tracking-tight">My Profile</h2>
                 <p className="text-muted-foreground">Manage your personal information and security settings.</p>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2">
                     <CardHeader>
@@ -234,8 +334,7 @@ export default function ProfilePage() {
                     </CardHeader>
                     <CardContent>
                         <Form {...form}>
-                            <form onSubmit={handleFormSubmit} className="space-y-6"> {/* CHANGE: Use wrapper for logs. */}
-                                {/* Rest of form unchanged—fields, image upload, etc. */}
+                            <form onSubmit={handleFormSubmit} className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-6">
                                         <FormItem>
@@ -265,7 +364,7 @@ export default function ProfilePage() {
                                             </div>
                                             <FormDescription>Accepted formats: JPG, PNG, GIF. Max size: 2MB</FormDescription>
                                         </FormItem>
-                                        
+
                                         <FormField control={form.control} name="name" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Full Name</FormLabel>
@@ -273,19 +372,19 @@ export default function ProfilePage() {
                                                 <FormMessage />
                                             </FormItem>
                                         )}/>
-                                        
+
                                         <FormItem>
                                             <FormLabel>Email Address</FormLabel>
                                             <Input value={user.email} disabled />
                                             <FormDescription>Your email cannot be changed.</FormDescription>
                                         </FormItem>
-                                        
+
                                         <FormField control={form.control} name="gender" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Gender</FormLabel>
                                                 <FormControl>
-                                                    <RadioGroup 
-                                                        onValueChange={field.onChange} 
+                                                    <RadioGroup
+                                                        onValueChange={field.onChange}
                                                         defaultValue={field.value}
                                                         className="flex space-x-4"
                                                     >
@@ -307,7 +406,7 @@ export default function ProfilePage() {
                                             </FormItem>
                                         )}/>
                                     </div>
-                                    
+
                                     <div className="space-y-6">
                                         <FormField control={form.control} name="nationality" render={({ field }) => (
                                             <FormItem>
@@ -328,7 +427,7 @@ export default function ProfilePage() {
                                                 <FormMessage />
                                             </FormItem>
                                         )}/>
-                                        
+
                                         {nationality === 'other' && (
                                             <FormField control={form.control} name="otherNationality" render={({ field }) => (
                                                 <FormItem>
@@ -338,7 +437,7 @@ export default function ProfilePage() {
                                                 </FormItem>
                                             )}/>
                                         )}
-                                        
+
                                         <FormField control={form.control} name="educationLevel" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Education Level</FormLabel>
@@ -359,7 +458,7 @@ export default function ProfilePage() {
                                                 <FormMessage />
                                             </FormItem>
                                         )}/>
-                                        
+
                                         <FormField control={form.control} name="university" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Name of University (Optional)</FormLabel>
@@ -369,7 +468,7 @@ export default function ProfilePage() {
                                         )}/>
                                     </div>
                                 </div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField control={form.control} name="address" render={({ field }) => (
                                         <FormItem>
@@ -378,7 +477,7 @@ export default function ProfilePage() {
                                             <FormMessage />
                                         </FormItem>
                                     )}/>
-                                    
+
                                     <FormField control={form.control} name="phone" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Phone Number (Optional)</FormLabel>
@@ -387,20 +486,18 @@ export default function ProfilePage() {
                                         </FormItem>
                                     )}/>
                                 </div>
-                                
+
                                 <div className="flex justify-end pt-4">
-                                    {/* CHANGE: Remove isDirty check temporarily for testing—always enable button.
-                                       Re-add after confirming submit works: disabled={isSubmitting} */}
                                     <Button type="submit" disabled={isSubmitting}>
                                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         Save Changes
                                     </Button>
                                 </div>
                             </form>
-                    </Form>
+                        </Form>
                     </CardContent>
                 </Card>
-                
+
                 <Card>
                      <CardHeader>
                         <CardTitle>Security</CardTitle>

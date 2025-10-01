@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Name is required'],
     trim: true,
   },
+
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -15,41 +16,50 @@ const userSchema = new mongoose.Schema({
     trim: true,
     lowercase: true,
   },
+
   password: {
     type: String,
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters long'],
   },
+
   role: {
     type: String,
     enum: ['student', 'teacher', 'admin'],
     default: 'student',
   },
+
   avatarUrl: {
     type: String,
     default: '',
   },
+
   enrolledCourseIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',
   }],
+
   classIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Class',
   }],
+
   gender: {
     type: String,
     enum: ['male', 'female', 'other'],
     required: true,
   },
+
   nationality: {
     type: String,
     required: true,
   },
+
   educationLevel: {
     type: String,
     required: true,
   },
+
   university: String,
 
   address: String,
@@ -64,7 +74,7 @@ const userSchema = new mongoose.Schema({
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending'
   },
-
+  
   enrollmentDate: { type: Date },
 
   approvalDate: { type: Date },

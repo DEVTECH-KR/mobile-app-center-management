@@ -27,7 +27,7 @@ const classSchema = new mongoose.Schema({
 
     trainerId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Trainer',
+        ref: 'User',
         required: true,
     },
 
