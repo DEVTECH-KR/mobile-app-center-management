@@ -19,7 +19,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { EnrollmentRequest, EnrollmentStatus, User } from "@/lib/types";
+import type { IEnrollment } from '@/server/api/enrollments/enrollment.schema';
+import type { IUser } from '@/server/api/auth/user.schema';
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,23 @@ import { Loader2 } from "lucide-react";
 import { AdminEnrollmentManager } from "@/components/enrollments/admin-enrollment-manager";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
+type EnrollmentStatus = IEnrollment['status'];
+
+// ✅ Type pour les enrollments peuplés
+type PopulatedEnrollment = Omit<IEnrollment, 'studentId' | 'courseId'> & {
+  studentId: {
+    _id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  };
+  courseId: {
+    _id: string;
+    title: string;
+    price: number;
+  };
+};
+
 const statusVariant: Record<EnrollmentStatus, { variant: "default" | "secondary" | "outline" | "destructive", icon: React.ElementType }> = {
     approved: { variant: "default", icon: CheckCircle },
     pending: { variant: "secondary", icon: Hourglass },
@@ -35,11 +53,11 @@ const statusVariant: Record<EnrollmentStatus, { variant: "default" | "secondary"
 }
 
 export default function EnrollmentRequestsPage() {
-    const { user } = useAuth();
-    const [requests, setRequests] = useState<EnrollmentRequest[]>([]);
+    const { user } = useAuth(); 
+    const [requests, setRequests] = useState<PopulatedEnrollment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedRequest, setSelectedRequest] = useState<EnrollmentRequest | null>(null);
+    const [selectedRequest, setSelectedRequest] = useState<PopulatedEnrollment | null>(null);
     
     useEffect(() => {
         if (user) {
@@ -121,7 +139,7 @@ export default function EnrollmentRequestsPage() {
                             const statusBadgeVariant = statusVariant[request.status].variant;
 
                             return (
-                                <TableRow key={request._id}>
+                                <TableRow key={String(request._id)}>
                                     <TableCell>
                                         <div className="flex items-center space-x-3">
                                             <Avatar className="h-8 w-8">

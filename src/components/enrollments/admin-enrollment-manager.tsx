@@ -8,11 +8,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { EnrollmentRequest } from "@/lib/types";
+import type { IEnrollment } from '@/server/api/enrollments/enrollment.schema';
 import { Loader2 } from "lucide-react";
 
+// ✅ Type pour les enrollments peuplés
+type PopulatedEnrollment = Omit<IEnrollment, 'studentId' | 'courseId'> & {
+  studentId: {
+    _id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  };
+  courseId: {
+    _id: string;
+    title: string;
+    price: number;
+  };
+};
+
 interface AdminEnrollmentManagerProps {
-  enrollment: EnrollmentRequest;
+  enrollment: PopulatedEnrollment;
   onStatusUpdate: () => void;
 }
 

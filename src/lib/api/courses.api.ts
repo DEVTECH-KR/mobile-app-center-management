@@ -1,5 +1,11 @@
 // src/lib/api/courses.api.ts
-import type { Course, User } from '@/lib/types';
+import { ICourse } from "@/server/api/courses/course.schema";
+import { IUser } from "@/server/api/auth/user.schema";
+
+const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('token');
+};
 
 const getHeaders = (includeContentType = true): HeadersInit => {
   const headers: HeadersInit = {};
@@ -32,21 +38,49 @@ export const coursesApi = {
       if (params.sortOrder) searchParams.append('sortOrder', params.sortOrder);
     }
     const url = `/api/courses${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-    const res = await fetch(url, { headers: getHeaders(), credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to fetch courses');
-    return res.json();
+    const token = getAuthToken();
+    const res = await fetch(url, { 
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      }, 
+      credentials: 'include' 
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      console.error('Courses fetch failed:', { status: res.status, error });
+      throw new Error(error.error || `Failed to fetch courses (status: ${res.status})`);
+    }
+    const data = await res.json();
+    console.log('Courses fetched:', data);
+    return data;
   },
 
   async getById(id: string) {
-    const res = await fetch(`/api/courses/${id}`, { headers: getHeaders(), credentials: 'include' });
-    if (!res.ok) throw new Error(res.status === 404 ? 'Course not found' : 'Failed to fetch course');
+    const token = getAuthToken();
+    const res = await fetch(`/api/courses/${id}`, { 
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      }, 
+      credentials: 'include' 
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      console.error('Course fetch failed:', { status: res.status, error });
+      throw new Error(res.status === 404 ? 'Course not found' : `Failed to fetch course (status: ${res.status})`);
+    }
     return res.json();
   },
 
-  async create(courseData: Partial<Course>) {
+  async create(courseData: Partial<ICourse>) {
+    const token = getAuthToken();
     const res = await fetch('/api/courses', {
       method: 'POST',
-      headers: getHeaders(),
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      },
       credentials: 'include',
       body: JSON.stringify(courseData),
     });
@@ -57,24 +91,49 @@ export const coursesApi = {
     return res.json();
   },
 
-  async update(id: string, courseData: Partial<Course>) {
+  async update(id: string, courseData: Partial<ICourse>) {
+    console.log('Updating course:', { id, courseData }); // Debug log
+    if (!id) {
+      console.error('Update course error: Course ID is missing');
+      throw new Error('Course ID is required');
+    }
+    // Validate teacherIds
+    if (courseData.teacherIds) {
+      courseData.teacherIds.forEach(id => {
+        if (typeof id !== 'string' || !/^[0-9a-fA-F]{24}$/.test(id)) {
+          console.error('Update course error: Invalid teacher ID:', id, 'Type:', typeof id);
+          throw new Error(`Invalid teacher ID: ${JSON.stringify(id)}`);
+        }
+      });
+    }
+    const token = getAuthToken();
+    // Ensure _id is not included in the body
+    const { _id, ...updateData } = courseData;
     const res = await fetch(`/api/courses/${id}`, {
       method: 'PUT',
-      headers: getHeaders(),
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      },
       credentials: 'include',
-      body: JSON.stringify(courseData),
+      body: JSON.stringify(updateData),
     });
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(res.status === 404 ? 'Course not found' : error.error || 'Failed to update course');
+      const error = await res.json().catch(() => ({}));
+      console.error('Course update failed:', { status: res.status, error });
+      throw new Error(error.error || `Failed to update course (status: ${res.status})`);
     }
     return res.json();
   },
 
   async delete(id: string) {
+    const token = getAuthToken();
     const res = await fetch(`/api/courses/${id}`, {
       method: 'DELETE',
-      headers: getHeaders(),
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      },
       credentials: 'include',
     });
     if (!res.ok) {
@@ -86,42 +145,81 @@ export const coursesApi = {
 };
 
 export const usersApi = {
-  async getCurrentUser(): Promise<User | null> {
+  async getCurrentUser(): Promise<IUser | null> {
+    const token = getAuthToken();
     const res = await fetch('/api/auth/profile', {
-      headers: getHeaders(),
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      },
       credentials: 'include', 
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error('User fetch failed:', { status: res.status });
+      return null;
+    }
     const data = await res.json();
-    return data.user;
+    console.log('User fetched:', data);
+    return data;
   },
 
   async getByRole(role: 'admin' | 'teacher' | 'student') {
-    const res = await fetch(`/api/users?role=${role}`, {
-      headers: getHeaders(),
+    const token = getAuthToken();
+    const res = await fetch(`/api/auth/users?role=${role}`, {
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      },
       credentials: 'include',
     });
-    if (!res.ok) throw new Error('Failed to fetch users');
-    return res.json();
+    if (!res.ok) {
+      if (res.status === 404) {
+        console.log(`No users found for role: ${role}`); 
+        return [];
+      }
+      const error = await res.json().catch(() => ({}));
+      console.error('Users fetch failed:', { status: res.status, error });
+      throw new Error(error.error || `Failed to fetch users (status: ${res.status})`);
+    }
+    const data = await res.json();
+    console.log('Users fetched for role:', role, data); 
+    return data || [];
   },
 };
 
 export const enrollmentApi = {
-  async getEnrollmentRequests(userId: string) {
-    const res = await fetch(`/api/enrollments?userId=${userId}`, {
-      headers: getHeaders(),
+  async getEnrollmentRequests(studentId: string) {
+    const token = getAuthToken();
+    const res = await fetch(`/api/enrollments?studentId=${studentId}`, {
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      },
       credentials: 'include',
     });
-    if (!res.ok) return null;
-    return res.json();
+    if (!res.ok) {
+      if (res.status !== 404) {
+        const error = await res.json().catch(() => ({}));
+        console.error('Enrollment requests fetch failed:', { status: res.status, error });
+        throw new Error(error.error || `Failed to fetch enrollment requests (status: ${res.status})`);
+      }
+      return [];
+    }
+    const data = await res.json();
+    console.log('Enrollment requests fetched:', data);
+    return data || [];
   },
 
-  async requestEnrollment(courseId: string) {
+  async requestEnrollment(courseId: string, studentId: string) {
+    const token = getAuthToken();
     const res = await fetch('/api/enrollments', {
       method: 'POST',
-      headers: getHeaders(),
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      },
       credentials: 'include',
-      body: JSON.stringify({ courseId }),
+      body: JSON.stringify({ courseId, studentId }),
     });
     if (!res.ok) {
       const error = await res.json();
@@ -131,11 +229,21 @@ export const enrollmentApi = {
   },
 
   async checkStatus(courseId: string) {
+    const token = getAuthToken();
     const res = await fetch(`/api/enrollments?courseId=${courseId}`, {
-      headers: getHeaders(),
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      },
       credentials: 'include',
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status !== 404) {
+        console.error('Enrollment status fetch failed:', { status: res.status });
+        throw new Error(`Failed to fetch enrollment status (status: ${res.status})`);
+      }
+      return [];
+    }
     return res.json();
   },
 
@@ -144,8 +252,22 @@ export const enrollmentApi = {
     if (params?.status) searchParams.append('status', params.status);
     if (params?.courseId) searchParams.append('courseId', params.courseId);
     const url = `/api/enrollments${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-    const res = await fetch(url, { headers: getHeaders(), credentials: 'include' });
-    if (!res.ok) throw new Error('Failed to fetch enrollment requests');
+    const token = getAuthToken();
+    const res = await fetch(url, { 
+      headers: { 
+        ...getHeaders(), 
+        Authorization: token ? `Bearer ${token}` : ''
+      }, 
+      credentials: 'include' 
+    });
+    if (!res.ok) {
+      if (res.status !== 404) {
+        const error = await res.json().catch(() => ({}));
+        console.error('Enrollments fetch failed:', { status: res.status, error });
+        throw new Error(error.error || `Failed to fetch enrollment requests (status: ${res.status})`);
+      }
+      return [];
+    }
     return res.json();
   },
 };

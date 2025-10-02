@@ -1,7 +1,7 @@
 // src/server/api/auth/auth.service.ts
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User, Course, Class, Enrollment } from '../models';
+import { UserModel, CourseModel, ClassModel, EnrollmentModel } from '../models';
 
 
 const JWT_SECRET = process.env.JWT_SECRET || '2bda842ae236aedf8bd7da1ee7998bdd0ec8d793afb9da5d6e371eb041f18f0facd41416f331a5c89608c2f3b62597f0401c7255d662b9c3834249b3b66b5225';
@@ -19,13 +19,13 @@ export class AuthService {
     address?: string;
     phone?: string;
   }) {
-    const existingUser = await User.findOne({ email: userData.email });
+    const existingUser = await UserModel.findOne({ email: userData.email });
     if (existingUser) {
       throw new Error('Email already registered');
     }
 
     const hashedPassword = await bcrypt.hash(userData.password, 10);
-    const user = await User.create({
+    const user = await UserModel.create({
       ...userData,
       password: hashedPassword,
     });
@@ -40,7 +40,7 @@ export class AuthService {
   }
 
   static async login(email: string, password: string) {
-    const user = await User.findOne({ email });
+    const user = await UserModel.findOne({ email });
     if (!user) {
       throw new Error('Invalid credentials');
     }
@@ -60,7 +60,7 @@ export class AuthService {
   }
 
   static async getProfile(userId: string) {
-    const user = await User.findById(userId)
+    const user = await UserModel.findById(userId)
       .select('-password')
       .populate('enrolledCourseIds')
       .populate('classIds');
@@ -80,7 +80,7 @@ export class AuthService {
     delete updateData.enrolledCourseIds;
     delete updateData.classIds;
 
-    const user = await User.findByIdAndUpdate(
+    const user = await UserModel.findByIdAndUpdate(
       userId,
       updateData,
       { new: true, runValidators: true }
@@ -94,7 +94,7 @@ export class AuthService {
   }
 
   static async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    const user = await User.findById(userId);
+    const user = await UserModel.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
@@ -112,7 +112,7 @@ export class AuthService {
   }  
 
   static async updatePreferences(userId: string, preferences: { theme?: string; language?: string }) {
-    const user = await User.findById(userId);
+    const user = await UserModel.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }

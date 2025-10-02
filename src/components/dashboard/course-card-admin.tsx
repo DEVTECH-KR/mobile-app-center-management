@@ -1,15 +1,17 @@
-// src/components/dashboard/CourseCardAdmin.tsx
 import React from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Course } from "@/lib/types";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, Eye } from "lucide-react";
+import type { ICourse } from "@/server/api/courses/course.schema";
+import Link from "next/link";
 
 interface CourseCardAdminProps {
-  course: Course;
+  course: ICourse;
+  onEdit?: (course: ICourse) => void;
+  onDelete?: (course: ICourse) => void;
 }
 
-export const CourseCardAdmin: React.FC<CourseCardAdminProps> = ({ course }) => {
+export const CourseCardAdmin: React.FC<CourseCardAdminProps> = ({ course, onEdit, onDelete }) => {
   return (
     <Card className="flex flex-col overflow-hidden group relative">
       <CardHeader className="p-0">
@@ -33,11 +35,35 @@ export const CourseCardAdmin: React.FC<CourseCardAdminProps> = ({ course }) => {
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">
-        <Button variant="outline" size="sm">
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+        >
+          <Link href={`/dashboard/courses/${course._id}`}>
+            <Eye className="mr-2 h-4 w-4" />
+            View
+          </Link>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            console.log('Edit button clicked for course:', course._id);
+            onEdit?.(course);
+          }}
+        >
           <Edit className="mr-2 h-4 w-4" />
           Edit
         </Button>
-        <Button variant="destructive" size="sm">
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => {
+            console.log('Delete button clicked for course:', course._id);
+            onDelete?.(course);
+          }}
+        >
           <Trash2 className="mr-2 h-4 w-4" />
           Delete
         </Button>

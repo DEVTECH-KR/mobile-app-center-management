@@ -6,13 +6,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
-import { Course, CenterInfo } from "@/lib/types";
+import { CenterInfo } from "@/lib/types";
+import type { ICourse } from '@/server/api/courses/course.schema';
 import { useToast } from "@/hooks/use-toast";
 
 interface EnrollmentRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  course: Course;
+  course: ICourse;
 }
 
 export function EnrollmentRequestModal({
@@ -50,7 +51,7 @@ export function EnrollmentRequestModal({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          courseId: course.id,
+          courseId: course._id,
         }),
       }).then(res => {
         if (!res.ok) throw new Error('Failed');

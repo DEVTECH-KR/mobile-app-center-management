@@ -1,9 +1,7 @@
-// src/app/dashboard/courses/[id]/page.tsx
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { MOCK_CENTER_INFO } from "@/lib/mock-data";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft, BookOpen, Clock, User, Star, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -12,99 +10,65 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Course, User as UserType, EnrollmentRequest } from "@/lib/types";
+import { coursesApi, usersApi, enrollmentApi } from "@/lib/api/courses.api";
+import type { ICourse } from "@/server/api/courses/course.schema";
+import type { IUser } from "@/server/api/auth/user.schema";
+import type { IEnrollment } from "@/server/api/enrollments/enrollment.schema";
 
-// Helper function to get auth token
-const getAuthToken = () => {
-  return localStorage.getItem('authToken');
-};
-
-// API call functions
-const fetchCourse = async (id: string) => {
-  const response = await fetch(`/api/courses/${id}`);
-  if (!response.ok) throw new Error('Course not found');
-  return response.json();
-};
-
-const fetchCurrentUser = async () => {
-  const token = getAuthToken();
-  if (!token) return null;
-  
-  const response = await fetch('/api/auth/me', {
-    headers: { 'Authorization': `Bearer ${token}` },
-  });
-  if (!response.ok) return null;
-  return response.json();
-};
-
-const submitEnrollmentRequest = async (courseId: string) => {
-  const token = getAuthToken();
-  const response = await fetch('/api/enrollment-requests', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({ courseId }),
-  });
-  if (!response.ok) throw new Error('Failed to submit enrollment request');
-  return response.json();
-};
-
-const checkEnrollmentStatus = async (courseId: string) => {
-  const token = getAuthToken();
-  const response = await fetch(`/api/enrollment-requests?courseId=${courseId}`, {
-    headers: { 'Authorization': `Bearer ${token}` },
-  });
-  if (!response.ok) return null;
-  return response.json();
-};
-
-export default function CourseDetailsPage({ params }: { params: { id: string } }) {
-  const [course, setCourse] = useState<Course | null>(null);
-  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
+export default async function CourseDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params; // Unwrap params Promise
+  const [course, setCourse] = useState<ICourse | null>(null);
+  const [currentUser, setCurrentUser] = useState<IUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRequestSubmitted, setIsRequestSubmitted] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        
+
         // Fetch course details
-        const courseData = await fetchCourse(params.id);
+        const courseData = await coursesApi.getById(id);
         setCourse(courseData);
 
         // Fetch current user
-        const userData = await fetchCurrentUser();
+        const userData = await usersApi.getCurrentUser();
         setCurrentUser(userData);
 
         // Check enrollment status if user is a student
-        if (userData?.role === 'student' && params.id) {
-          const enrollmentStatus = await checkEnrollmentStatus(params.id);
-          if (enrollmentStatus?.status === 'pending') {
-            setHasPendingRequest(true);
-          }
+        if (userData?.role === 'student' && id) {
+          const enrollments = await enrollmentApi.getEnrollmentRequests(String(userData._id));
+          const hasPending = enrollments.some(
+            (req: IEnrollment) => String(req.courseId._id) === id && req.status === 'pending'
+          );
+          setHasPendingRequest(hasPending);
         }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load course details",
-          variant: "destructive"
-        });
+      } catch (error: any) {
+        console.error('CourseDetailsPage error:', error);
+        if (error.message === 'Course not found') {
+          notFound();
+        } else if (error.message.includes('Failed to fetch user')) {
+          router.push('/login');
+        } else {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to load course details",
+            variant: "destructive",
+          });
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (params.id) {
+    if (id) {
       loadData();
     }
-  }, [params.id, toast]);
+  }, [id, toast, router]);
 
   if (isLoading) {
     return (
@@ -118,34 +82,46 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
     notFound();
   }
 
-  const isEnrolled = currentUser?.enrolledCourseIds?.includes(course.id);
-  const canEnroll = currentUser?.role === 'student' && !isEnrolled && !hasPendingRequest && !isRequestSubmitted;
+  const isEnrolled = currentUser?.enrolledCourseIds?.some(id => String(id) === String(course._id));
+  const canEnroll = currentUser?.role === 'student' && !isEnrolled && !hasPendingRequest;
 
   const handleEnrollmentRequest = async () => {
-    setIsSubmitting(true);
-    
-    try {
-      await submitEnrollmentRequest(course.id);
-      
-      setIsSubmitting(false);
-      setShowConfirmDialog(false);
-      setIsRequestSubmitted(true);
-      
-      toast({
-        title: "Enrollment Request Submitted!",
-        description: `Your request for ${course.title} has been received.`,
-      });
-    } catch (error) {
-      setIsSubmitting(false);
+    if (!currentUser) {
       toast({
         title: "Error",
-        description: "Failed to submit enrollment request",
-        variant: "destructive"
+        description: "Please log in to enroll",
+        variant: "destructive",
       });
+      router.push('/login');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await enrollmentApi.requestEnrollment(String(course._id), String(currentUser._id));
+      setHasPendingRequest(true);
+      setShowConfirmDialog(false);
+      toast({
+        title: "Success",
+        description: `Enrollment request for "${course.title}" submitted! Please contact the center to complete registration.`,
+      });
+    } catch (error: any) {
+      console.error('Enrollment request error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit enrollment request",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const schedule = `${course.days.join(', ')} | ${course.startTime} - ${course.endTime}`;
+  // Handle optional fields with fallbacks
+  const schedule = [
+    course.days?.length ? course.days.join(', ') : 'Not specified',
+    course.startTime && course.endTime ? `${course.startTime} - ${course.endTime}` : 'Time not specified'
+  ].filter(Boolean).join(' | ');
 
   const currencyFormatter = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -154,13 +130,9 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
   });
 
   // Get teacher names from populated data
-  const teachers = course.teacherIds.map(teacher => {
-    // If teacherIds are populated objects
-    if (typeof teacher === 'object' && teacher !== null) {
-      return (teacher as any).name;
-    }
-    return null;
-  }).filter(Boolean);
+  const teachers = course.teacherIds
+    .map(teacher => (typeof teacher === 'object' && teacher !== null && 'name' in teacher ? teacher.name : null))
+    .filter((name): name is string => !!name);
 
   return (
     <div className="space-y-6">
@@ -180,7 +152,7 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
           </h1>
           <div className="relative aspect-video w-full">
             <Image
-              src={course.imageUrl}
+              src={course.imageUrl || "/default-course.png"}
               alt={course.title}
               fill
               className="rounded-lg object-cover"
@@ -189,7 +161,7 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
           </div>
           <div>
             <h2 className="font-headline text-2xl font-semibold mb-2">Description</h2>
-            <p className="text-muted-foreground">{course.description}</p>
+            <p className="text-muted-foreground">{course.description || 'No description available'}</p>
           </div>
         </div>
         
@@ -197,7 +169,7 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
           <Card>
             <CardHeader>
               <CardTitle className="font-headline text-2xl text-primary">
-                {currencyFormatter.format(course.price)}
+                {currencyFormatter.format(course.price || 0)}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -213,9 +185,13 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
                 <div>
                   <p className="font-medium">Levels</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {course.levels?.map(level => (
-                      <Badge key={level} variant="secondary">{level}</Badge>
-                    ))}
+                    {course.levels?.length ? (
+                      course.levels.map(level => (
+                        <Badge key={level} variant="secondary">{level}</Badge>
+                      ))
+                    ) : (
+                      <Badge variant="secondary">Not specified</Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -239,7 +215,7 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
               disabled={!canEnroll}
             >
               <BookOpen className="mr-2 h-5 w-5" />
-              {isEnrolled ? "Already Enrolled" : (hasPendingRequest || isRequestSubmitted) ? "Request Pending" : "Request Enrollment"}
+              {isEnrolled ? "Enrolled" : hasPendingRequest ? "Request Pending" : "Request Enrollment"}
             </Button>
           )}
         </div>
@@ -259,28 +235,6 @@ export default function CourseDetailsPage({ params }: { params: { id: string } }
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirm
             </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      
-      <AlertDialog open={isRequestSubmitted && !showConfirmDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Request Submitted Successfully!</AlertDialogTitle>
-            <div className="text-sm text-muted-foreground pt-4 space-y-4">
-              <p>You have reserved a spot for the training in <span className="font-semibold">{course.title}</span>.</p>
-              <p>Please visit the center within 48 hours to pay the registration fee of <span className="font-semibold">{currencyFormatter.format(MOCK_CENTER_INFO.registrationFee)}</span> so that your spot can be definitively reserved.</p>
-              <div className="border-l-4 pl-4">
-                <p><span className="font-semibold">Center Address:</span> {MOCK_CENTER_INFO.address}</p>
-                <p><span className="font-semibold">Contact:</span> {MOCK_CENTER_INFO.contact}</p>
-              </div>
-              <p>Once the payment has been made, you will have full access to our app: track your payments, download syllabi, access events, and more.</p>
-            </div>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button asChild className="w-full">
-              <Link href="/dashboard/courses">Back to Courses</Link>
-            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

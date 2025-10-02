@@ -37,4 +37,4 @@ const classSchema = new mongoose.Schema({
     }
 });
 
-export default mongoose.models.Class || mongoose.model('Class', classSchema);
+export const ClassModel = mongoose.models.Class || mongoose.model('Class', classSchema);

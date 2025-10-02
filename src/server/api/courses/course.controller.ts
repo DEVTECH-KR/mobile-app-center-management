@@ -1,16 +1,16 @@
-// src/server/api/courses/course.controller.ts
 import { NextResponse } from 'next/server';
 import { CourseService } from './course.service';
 import { z } from 'zod';
 import { rbacMiddleware } from '@/server/middleware/rbac.middleware';
-import type { Course } from '@/lib/types';
+import { ICourse } from './course.schema';
+import { Types } from 'mongoose';
 
-// Validation schema pour la création et la mise à jour des cours
-const courseSchema = z.object({
+// Validation schema for course creation and update
+const CourseSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   price: z.number().min(0, "Price must be a positive number"),
-  teacherIds: z.array(z.string()),
+  teacherIds: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId")).optional(),
   days: z.array(z.enum(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])),
   startTime: z.string(),
   endTime: z.string(),
@@ -19,18 +19,22 @@ const courseSchema = z.object({
   levels: z.array(z.string()),
 });
 
-// =================================
-// POST /api/courses - créer un cours
-// =================================
+// POST /api/courses - create a course
 export async function POST(request: Request) {
   const rbacCheck = await rbacMiddleware(['admin'])(request as any);
   if (rbacCheck.status !== 200) return rbacCheck;
 
   try {
     const body = await request.json();
-    const validatedData = courseSchema.parse(body);
+    const validatedData = CourseSchema.parse(body);
 
-    const course: Course = await CourseService.create(validatedData);
+    // Convert string[] to ObjectId[]
+    const courseData: Partial<ICourse> = {
+      ...validatedData,
+      teacherIds: validatedData.teacherIds?.map(id => new Types.ObjectId(id)),
+    };
+
+    const course = await CourseService.create(courseData);
     return NextResponse.json(course, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -40,9 +44,7 @@ export async function POST(request: Request) {
   }
 }
 
-// =================================
-// GET /api/courses - liste ou détail d’un cours
-// =================================
+// GET /api/courses - list or get a course by ID
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -53,7 +55,7 @@ export async function GET(request: Request) {
       return NextResponse.json(course);
     }
 
-    // Pagination, tri et filtres
+    // Pagination, sorting, and filters
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const sortBy = searchParams.get('sortBy') || 'createdAt';
@@ -78,24 +80,40 @@ export async function GET(request: Request) {
   }
 }
 
-// =================================
-// PUT /api/courses?id=xxx - mettre à jour un cours
-// =================================
-export async function PUT(request: Request) {
+// PUT /api/courses/[id] - update a course
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const rbacCheck = await rbacMiddleware(['admin'])(request as any);
   if (rbacCheck.status !== 200) return rbacCheck;
 
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Course ID is required' }, { status: 400 });
+    const { id: courseId } = await params;
+    console.log('Route updateCourse: Course ID:', courseId); // Debug log
+    if (!courseId) {
+      return NextResponse.json({ error: 'Course ID is required' }, { status: 400 });
+    }
+    if (!Types.ObjectId.isValid(courseId)) {
+      return NextResponse.json({ error: 'Invalid course ID format' }, { status: 400 });
+    }
 
     const body = await request.json();
-    const validatedData = courseSchema.partial().parse(body);
+    console.log('Route updateCourse: Payload:', body); // Debug log
+    const validatedData = CourseSchema.partial().parse(body);
 
-    const course = await CourseService.update(id, validatedData);
+    // Convert string[] to ObjectId[] if present
+    const updateData: Partial<ICourse> = {
+      ...validatedData,
+      teacherIds: validatedData.teacherIds?.map(id => {
+        if (!Types.ObjectId.isValid(id)) {
+          throw new Error(`Invalid teacher ID: ${id}`);
+        }
+        return new Types.ObjectId(id);
+      }),
+    };
+    const course = await CourseService.update(courseId, updateData);
+    console.log('Route updateCourse: Updated course:', course._id); // Debug log
     return NextResponse.json(course);
   } catch (error) {
+    console.error('Route updateCourse error:', error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
@@ -106,21 +124,26 @@ export async function PUT(request: Request) {
   }
 }
 
-// =================================
-// DELETE /api/courses?id=xxx - supprimer un cours
-// =================================
-export async function DELETE(request: Request) {
+// DELETE /api/courses/[id] - delete a course
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const rbacCheck = await rbacMiddleware(['admin'])(request as any);
   if (rbacCheck.status !== 200) return rbacCheck;
 
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Course ID is required' }, { status: 400 });
+    const { id: courseId } = await params;
+    console.log('Route deleteCourse: Course ID:', courseId); // Debug log
+    if (!courseId) {
+      return NextResponse.json({ error: 'Course ID is required' }, { status: 400 });
+    }
+    if (!Types.ObjectId.isValid(courseId)) {
+      return NextResponse.json({ error: 'Invalid course ID format' }, { status: 400 });
+    }
 
-    await CourseService.delete(id);
+    await CourseService.delete(courseId);
+    console.log('Route deleteCourse: Deleted course:', courseId); // Debug log
     return NextResponse.json({ message: 'Course deleted successfully' }, { status: 200 });
   } catch (error: any) {
+    console.error('Route deleteCourse error:', error);
     return NextResponse.json(
       { error: error.message },
       { status: error.message === 'Course not found' ? 404 : 500 }

@@ -3,6 +3,13 @@ import { NextResponse } from 'next/server';
 import { EnrollmentService } from './enrollment.service';
 import { rbacMiddleware } from '@/server/middleware/rbac.middleware';
 import { type AllowedRoles } from '@/server/middleware/rbac.middleware';
+import { z } from 'zod';
+
+const EnrollmentSchema = z.object({
+  courseId: z.string(),
+  userId: z.string().optional(),
+  status: z.enum(['pending', 'approved', 'rejected']).optional(),
+});
 
 // Student can create and view their own requests
 export async function POST(request: Request) {
@@ -13,9 +20,11 @@ export async function POST(request: Request) {
 
   try {
     const { studentId, courseId } = await request.json();
+    console.log('Controller POST enrollment: Request body:', { studentId, courseId }); // FIXED: Debug log
     const enrollmentRequest = await EnrollmentService.createRequest(studentId, courseId);
     return NextResponse.json(enrollmentRequest, { status: 201 });
   } catch (error: any) {
+    console.error('Controller POST enrollment error:', error); // FIXED: Debug log
     return NextResponse.json(
       { error: error.message },
       { status: error.message.includes('already') ? 400 : 500 }
@@ -30,6 +39,8 @@ export async function GET(request: Request) {
   const status = searchParams.get('status') as 'pending' | 'approved' | 'rejected' | undefined;
   const courseId = searchParams.get('courseId') || undefined;
 
+  console.log('Controller GET enrollments: Query:', { studentId, status, courseId }); // FIXED: Debug log
+
   // If studentId is provided, only allow that student or admin
   const allowedRoles: AllowedRoles[] = studentId ? ['admin', 'student'] : ['admin'];
   const rbacCheck = await rbacMiddleware(allowedRoles)(request as any);
@@ -38,21 +49,20 @@ export async function GET(request: Request) {
   }
 
   try {
+    let requests;
     if (studentId) {
-      const requests = await EnrollmentService.getStudentRequests(studentId);
-      return NextResponse.json(requests);
+      requests = await EnrollmentService.getStudentRequests(studentId);
+    } else {
+      requests = await EnrollmentService.getAllRequests({ 
+        ...(status && { status }), 
+        ...(courseId && { courseId }) 
+      });
     }
-
-    const requests = await EnrollmentService.getAllRequests({ 
-      ...(status && { status }), 
-      ...(courseId && { courseId }) 
-    });
-    return NextResponse.json(requests);
+    console.log('Controller GET enrollments: Found:', requests.length); // FIXED: Debug log
+    return NextResponse.json(requests); // FIXED: Return array (even if empty)
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    console.error('Controller GET enrollments error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
@@ -71,6 +81,7 @@ export async function approve(request: Request) {
     });
     return NextResponse.json(updatedRequest);
   } catch (error: any) {
+    console.error('Controller approve enrollment error:', error); // FIXED: Debug log
     return NextResponse.json(
       { error: error.message },
       { status: 400 }
@@ -90,6 +101,7 @@ export async function reject(request: Request) {
     const updatedRequest = await EnrollmentService.rejectRequest(requestId, adminNotes);
     return NextResponse.json(updatedRequest);
   } catch (error: any) {
+    console.error('Controller reject enrollment error:', error); // FIXED: Debug log
     return NextResponse.json(
       { error: error.message },
       { status: 400 }
@@ -109,6 +121,7 @@ export async function recordPayment(request: Request) {
     const updatedRequest = await EnrollmentService.recordPayment(requestId);
     return NextResponse.json(updatedRequest);
   } catch (error: any) {
+    console.error('Controller recordPayment error:', error); // FIXED: Debug log
     return NextResponse.json(
       { error: error.message },
       { status: 400 }
@@ -127,6 +140,7 @@ export async function getStatistics(request: Request) {
     const stats = await EnrollmentService.getStatistics();
     return NextResponse.json(stats);
   } catch (error: any) {
+    console.error('Controller getStatistics error:', error); // FIXED: Debug log
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -139,6 +153,8 @@ export async function getCourseStatus(request: Request) {
   const { searchParams } = new URL(request.url);
   const studentId = searchParams.get("studentId");
   const courseId = searchParams.get("courseId");
+
+  console.log('Controller getCourseStatus: Query:', { studentId, courseId }); // FIXED: Debug log
 
   if (!studentId || !courseId) {
     return NextResponse.json(
@@ -157,6 +173,7 @@ export async function getCourseStatus(request: Request) {
     const status = await EnrollmentService.getCourseStatus(studentId, courseId);
     return NextResponse.json(status);
   } catch (error: any) {
+    console.error('Controller getCourseStatus error:', error); // FIXED: Debug log
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

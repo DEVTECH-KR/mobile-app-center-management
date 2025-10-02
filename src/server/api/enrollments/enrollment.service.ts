@@ -1,15 +1,14 @@
 // src/server/api/enrollments/enrollment.service.ts
 import { Types } from 'mongoose';
-import EnrollmentRequest from './enrollment.schema';
-import User from '../auth/user.schema';
-import Course from '../courses/course.schema';
-import CenterSettings from '../settings/center-settings.schema';
+import { EnrollmentModel } from './enrollment.schema';
+import { UserModel } from '../auth/user.schema';
+import { CourseModel } from '../courses/course.schema';
 
 export class EnrollmentService {
   // Create a new enrollment request
   static async createRequest(studentId: string, courseId: string) {
     // Validate student exists and is not already enrolled
-    const existingEnrollment = await EnrollmentRequest.findOne({
+    const existingEnrollment = await EnrollmentModel.findOne({
       studentId,
       courseId,
       status: { $in: ['pending', 'approved'] }
@@ -24,13 +23,13 @@ export class EnrollmentService {
     }
 
     // Validate course exists
-    const course = await Course.findById(courseId);
+    const course = await CourseModel.findById(courseId);
     if (!course) {
       throw new Error('Course not found');
     }
 
     // Create enrollment request
-    const enrollmentRequest = await EnrollmentRequest.create({
+    const enrollmentRequest = await EnrollmentModel.create({
       studentId,
       courseId,
       status: 'pending',
@@ -50,7 +49,7 @@ export class EnrollmentService {
       throw new Error('Invalid enrollment request ID');
     }
 
-    const request = await EnrollmentRequest.findById(requestId)
+    const request = await EnrollmentModel.findById(requestId)
       .populate('studentId', 'name email avatarUrl')
       .populate('courseId', 'title price')
       .populate('assignedClassId', 'name');
@@ -64,7 +63,7 @@ export class EnrollmentService {
 
   // Get all enrollment requests for a student
   static async getStudentRequests(studentId: string) {
-    return await EnrollmentRequest.find({ studentId })
+    return await EnrollmentModel.find({ studentId })
       .populate('courseId', 'title price')
       .populate('assignedClassId', 'name')
       .sort({ requestDate: 'desc' });
@@ -77,7 +76,7 @@ export class EnrollmentService {
     if (filter.status) query.status = filter.status;
     if (filter.courseId) query.courseId = filter.courseId;
 
-    return await EnrollmentRequest.find(query)
+    return await EnrollmentModel.find(query)
       .populate('studentId', 'name email avatarUrl')
       .populate('courseId', 'title price')
       .populate('assignedClassId', 'name')
@@ -86,7 +85,7 @@ export class EnrollmentService {
 
   // Approve enrollment request
   static async approveRequest(requestId: string, adminData: { classId: string; adminNotes?: string }) {
-    const request = await EnrollmentRequest.findById(requestId);
+    const request = await EnrollmentModel.findById(requestId);
     if (!request) {
       throw new Error('Enrollment request not found');
     }
@@ -106,7 +105,7 @@ export class EnrollmentService {
     await request.save();
 
     // Update user with enrolled course
-    await User.findByIdAndUpdate(request.studentId, {
+    await UserModel.findByIdAndUpdate(request.studentId, {
       $push: {
         enrolledCourses: {
           courseId: request.courseId,
@@ -130,7 +129,7 @@ export class EnrollmentService {
 
   // Reject enrollment request
   static async rejectRequest(requestId: string, adminNotes?: string) {
-    const request = await EnrollmentRequest.findById(requestId);
+    const request = await EnrollmentModel.findById(requestId);
     if (!request) {
       throw new Error('Enrollment request not found');
     }
@@ -151,7 +150,7 @@ export class EnrollmentService {
 
   // Record registration fee payment
   static async recordPayment(requestId: string) {
-    const request = await EnrollmentRequest.findById(requestId);
+    const request = await EnrollmentModel.findById(requestId);
     if (!request) {
       throw new Error('Enrollment request not found');
     }
@@ -169,7 +168,7 @@ export class EnrollmentService {
     await request.save();
 
     // Update user's access level
-    await User.findByIdAndUpdate(request.studentId, {
+    await UserModel.findByIdAndUpdate(request.studentId, {
       accessLevel: 'full'
     });
 
@@ -178,7 +177,7 @@ export class EnrollmentService {
 
   // Get enrollment statistics
   static async getStatistics() {
-    const stats = await EnrollmentRequest.aggregate([
+    const stats = await EnrollmentModel.aggregate([
       {
         $group: {
           _id: '$status',
@@ -201,13 +200,13 @@ export class EnrollmentService {
     }
 
     // Vérifier l’existence du cours
-    const course = await Course.findById(courseId);
+    const course = await CourseModel.findById(courseId);
     if (!course) {
       throw new Error("Course not found");
     }
 
     // Vérifier si une demande existe déjà
-    const enrollment = await EnrollmentRequest.findOne({ studentId, courseId });
+    const enrollment = await EnrollmentModel.findOne({ studentId, courseId });
 
     if (!enrollment) {
       return { status: "not_enrolled" }; // pas encore demandé

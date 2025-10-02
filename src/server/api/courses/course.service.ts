@@ -1,6 +1,5 @@
 // src/server/api/courses/course.service.ts
-import CourseModel from './course.schema';
-import type { Course } from '@/lib/types';
+import { CourseModel, ICourse } from './course.schema';
 import { Types } from 'mongoose';
 
 interface FilterOptions {
@@ -22,9 +21,16 @@ export class CourseService {
   // ============================
   // Créer un nouveau cours
   // ============================
-  static async create(courseData: Course): Promise<Course> {
+  static async create(courseData: Partial<ICourse>): Promise<ICourse> {
+    // Validate unique teacherIds
+    if (courseData.teacherIds) {
+      const uniqueTeacherIds = [...new Set(courseData.teacherIds.map(id => id.toString()))];
+      if (uniqueTeacherIds.length !== courseData.teacherIds.length) {
+        throw new Error('Duplicate teacher IDs are not allowed');
+      }
+    }
     const course = await CourseModel.create(courseData);
-    return course.toObject();
+    return course.populate('teacherIds', 'name email avatarUrl');
   }
 
   // ============================
@@ -35,7 +41,6 @@ export class CourseService {
     { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' }: PaginationOptions = {}
   ) {
     const query: any = {};
-
     if (filters.title) query.title = { $regex: filters.title, $options: 'i' };
     if (filters.minPrice !== undefined) query.price = { ...query.price, $gte: filters.minPrice };
     if (filters.maxPrice !== undefined) query.price = { ...query.price, $lte: filters.maxPrice };
@@ -47,7 +52,7 @@ export class CourseService {
 
     const [courses, total] = await Promise.all([
       CourseModel.find(query)
-        .populate('teacherIds', 'name email')
+        .populate('teacherIds', 'name email avatarUrl')
         .sort(sort)
         .skip(skip)
         .limit(limit),
@@ -69,39 +74,39 @@ export class CourseService {
   // ============================
   // Récupérer un cours par ID
   // ============================
-  static async getById(id: string): Promise<Course> {
+  static async getById(id: string): Promise<ICourse> {
     if (!Types.ObjectId.isValid(id)) throw new Error('Invalid course ID');
-
-    const course = await CourseModel.findById(id).populate('teacherIds', 'name email');
+    const course = await CourseModel.findById(id).populate('teacherIds', 'name email avatarUrl');
     if (!course) throw new Error('Course not found');
-
-    return course.toObject();
+    return course;
   }
+
 
   // ============================
   // Mettre à jour un cours
   // ============================
-  static async update(id: string, updateData: Partial<Course>): Promise<Course> {
+  static async update(id: string, updateData: Partial<ICourse>): Promise<ICourse> {
     if (!Types.ObjectId.isValid(id)) throw new Error('Invalid course ID');
-
-    const course = await CourseModel.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true
-    }).populate('teacherIds', 'name email');
-
+    // Validate unique teacherIds
+    if (updateData.teacherIds) {
+      const uniqueTeacherIds = [...new Set(updateData.teacherIds.map(id => id.toString()))];
+      if (uniqueTeacherIds.length !== updateData.teacherIds.length) {
+        throw new Error('Duplicate teacher IDs are not allowed');
+      }
+    }
+    const course = await CourseModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
+      .populate('teacherIds', 'name email avatarUrl'); 
     if (!course) throw new Error('Course not found');
-    return course.toObject();
+    return course;
   }
 
   // ============================
   // Supprimer un cours
   // ============================
-  static async delete(id: string): Promise<Course> {
+  static async delete(id: string): Promise<ICourse> {
     if (!Types.ObjectId.isValid(id)) throw new Error('Invalid course ID');
-
     const course = await CourseModel.findByIdAndDelete(id);
     if (!course) throw new Error('Course not found');
-
-    return course.toObject();
+    return course;
   }
 }

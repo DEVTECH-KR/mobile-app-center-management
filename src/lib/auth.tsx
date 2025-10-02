@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import type { ReactNode } from 'react';
 import { UserRole } from '@/lib/types';
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 
 interface User {
   id: string;
@@ -55,6 +56,7 @@ const DEFAULT_INACTIVITY_MS = 30 * 60 * 1000; // 30 minutes
 
 export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
   const { setTheme } = useTheme();
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
@@ -73,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
-    console.log('User logged out (manual or token invalid).');
+    router.push('/login');
   };
 
   const fetchProfile = async (token: string | null) => {

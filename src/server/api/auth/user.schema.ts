@@ -1,116 +1,70 @@
 // src/server/api/auth/user.schema.ts
-import mongoose from 'mongoose';
-import { UserRole } from '@/lib/types';
+import mongoose, { Schema, Document } from 'mongoose';
 
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Name is required'],
-    trim: true,
-  },
-
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    trim: true,
-    lowercase: true,
-  },
-
-  password: {
-    type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters long'],
-  },
-
-  role: {
-    type: String,
-    enum: ['student', 'teacher', 'admin'],
-    default: 'student',
-  },
-
-  avatarUrl: {
-    type: String,
-    default: '',
-  },
-
-  enrolledCourseIds: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course',
-  }],
-
-  classIds: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Class',
-  }],
-
-  gender: {
-    type: String,
-    enum: ['male', 'female', 'other'],
-    required: true,
-  },
-
-  nationality: {
-    type: String,
-    required: true,
-  },
-
-  educationLevel: {
-    type: String,
-    required: true,
-  },
-
-  university: String,
-
-  address: String,
-
-  phone: String,
-
-  enrolledCourses: [{
-  courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
-  classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
-  status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
-  },
-  
-  enrollmentDate: { type: Date },
-
-  approvalDate: { type: Date },
-
-  registrationFeePaid: { type: Boolean, default: false },
-
-  }],
-  
-  accessLevel: {
-    type: String,
-    enum: ['limited', 'full'],
-    default: 'limited'
-  },
-
+export interface IUser extends Document {
+  name: string;
+  email: string;
+  password: string;
+  role: 'student' | 'teacher' | 'admin';
+  avatarUrl?: string;
+  enrolledCourseIds: mongoose.Types.ObjectId[];
+  classIds: mongoose.Types.ObjectId[];
+  gender: 'male' | 'female' | 'other';
+  nationality: string;
+  educationLevel: string;
+  university?: string;
+  address?: string;
+  phone?: string;
+  enrolledCourses: {
+    courseId: mongoose.Types.ObjectId;
+    classId: mongoose.Types.ObjectId;
+    status: 'pending' | 'approved' | 'rejected';
+    enrollmentDate?: Date;
+    approvalDate?: Date;
+    registrationFeePaid?: boolean;
+  }[];
+  accessLevel: 'limited' | 'full';
   preferences: {
-    theme: {
-      type: String,
-      enum: ["light", "dark", "system"],
-      default: "system"
-    },
-    language: {
-      type: String,
-      enum: ["fr", "en"],
-      default: "fr"
-    }
+    theme: 'light' | 'dark' | 'system';
+    language: 'fr' | 'en';
+  };
+}
+
+const userSchema = new Schema<IUser>({
+  name: { type: String, required: true, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password: { type: String, required: true, minlength: 6 },
+  role: { type: String, enum: ['student', 'teacher', 'admin'], default: 'student' },
+  avatarUrl: { type: String, default: '' },
+  enrolledCourseIds: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
+  classIds: [{ type: Schema.Types.ObjectId, ref: 'Class' }],
+  gender: { type: String, enum: ['male', 'female', 'other'], required: true },
+  nationality: { type: String, required: true },
+  educationLevel: { type: String, required: true },
+  university: String,
+  address: String,
+  phone: String,
+  enrolledCourses: [{
+    courseId: { type: Schema.Types.ObjectId, ref: 'Course' },
+    classId: { type: Schema.Types.ObjectId, ref: 'Class' },
+    status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    enrollmentDate: Date,
+    approvalDate: Date,
+    registrationFeePaid: { type: Boolean, default: false },
+  }],
+  accessLevel: { type: String, enum: ['limited', 'full'], default: 'limited' },
+  preferences: {
+    theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
+    language: { type: String, enum: ['fr', 'en'], default: 'fr' }
   }
+}, { timestamps: true });
 
-  }, {
-    timestamps: true,
-  });
-
-// Add methods
+// Supprime password dans le JSON
 userSchema.methods.toJSON = function() {
   const obj = this.toObject();
   delete obj.password;
   return obj;
 };
 
-export default mongoose.models.User || mongoose.model('User', userSchema);
+// ✅ Modèle Mongoose
+export const UserModel = mongoose.models.User || mongoose.model<IUser>('User', userSchema);

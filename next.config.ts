@@ -1,7 +1,8 @@
-import type {NextConfig} from 'next';
+// next.config.ts
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  reactStrictMode: false, 
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -33,7 +34,7 @@ const nextConfig: NextConfig = {
         hostname: 'images.pexels.com',
         port: '',
         pathname: '/**',
-      }
+      },
     ],
   },
   webpack: (config) => {

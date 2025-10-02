@@ -35,18 +35,17 @@ export async function login(req: Request) {
 
     console.log('Login success, token length:', result.token.length);
 
-    // Créer la réponse avec cookie HttpOnly
     const response = NextResponse.json({
       user: result.user,
-      token: result.token // Optionnel si tu veux aussi renvoyer le token dans le body
+      token: result.token
     });
 
     response.cookies.set('token', result.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      path: '/', // accessible sur tout le site
-      maxAge: 60 * 60 * 24 * 7, // 7 jours
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;
@@ -63,7 +62,7 @@ export async function getProfile(req: Request) {
   try {
     await connectDB();
     const userId = req.headers.get('userId');
-    console.log('Controller getProfile: Using userId from header:', userId); 
+    console.log('Controller getProfile: Using userId from header:', userId);
 
     if (!userId) {
       console.log('Controller: No userId header—middleware failed?');
@@ -74,6 +73,7 @@ export async function getProfile(req: Request) {
     }
     
     const user = await AuthService.getProfile(userId);
+    console.log('Controller getProfile: Returning user:', { id: user._id, email: user.email, role: user.role }); // FIXED: Debug log
     return NextResponse.json(user);
   } catch (error: any) {
     console.error('Controller getProfile error:', error);
