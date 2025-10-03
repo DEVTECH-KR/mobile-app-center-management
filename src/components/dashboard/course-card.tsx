@@ -1,3 +1,4 @@
+// src/components/dashboard/course-card.tsx
 import Image from "next/image";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,31 +27,40 @@ export function CourseCard({ course, userRole, isEnrolled, hasPendingRequest }: 
   const buttonState = getButtonState();
 
   return (
-    <Card className="flex flex-col overflow-hidden">
-      <CardHeader className="p-0">
-        <div className="relative h-48 w-full">
-          <Image src={course.imageUrl || "/default-course.png"} alt={course.title} fill className="object-cover" />
-        </div>
-        <div className="p-6">
-          <CardTitle className="font-headline text-xl">{course.title}</CardTitle>
-          <CardDescription className="mt-2 h-10 overflow-hidden text-ellipsis">{course.description}</CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow space-y-2">
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Clock className="mr-2 h-4 w-4" />
-          <span>{schedule}</span>
-        </div>
-        <div className="font-headline text-2xl font-bold text-primary">{currencyFormatter.format(course.price)}</div>
-      </CardContent>
-      <CardFooter>
-        <Button className="w-full" variant={buttonState.variant} disabled={buttonState.disabled} asChild>
-          <Link href={buttonState.href}>
-            <buttonState.icon className="mr-2" />
-            {buttonState.text}
+    <div className="relative group">
+      <Card className="flex flex-col overflow-hidden">
+        <CardHeader className="p-0">
+          <div className="relative h-48 w-full">
+            <Image src={course.imageUrl || "/default-course.png"} alt={course.title} fill className="object-cover" />
+          </div>
+          <div className="p-6">
+            <CardTitle className="font-headline text-xl">{course.title}</CardTitle>
+            <CardDescription className="mt-2 h-10 overflow-hidden text-ellipsis">{course.description}</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-grow space-y-2">
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Clock className="mr-2 h-4 w-4" />
+            <span>{schedule}</span>
+          </div>
+          <div className="font-headline text-2xl font-bold text-primary">{currencyFormatter.format(course.price)}</div>
+        </CardContent>
+        <CardFooter>
+          <Button className="w-full" variant={buttonState.variant} disabled={buttonState.disabled} asChild>
+            <Link href={buttonState.href}>
+              <buttonState.icon className="mr-2" />
+              {buttonState.text}
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full bg-background/70 hover:bg-background" asChild>
+          <Link href={`/dashboard/courses/${course._id}`}>
+            <Eye className="h-4 w-4" />
           </Link>
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }

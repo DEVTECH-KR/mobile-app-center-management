@@ -2,10 +2,8 @@
 import { ICourse } from "@/server/api/courses/course.schema";
 import { IUser } from "@/server/api/auth/user.schema";
 
-const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
-};
+// Determine the base URL based on the environment
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || (typeof window === 'undefined' ? 'http://localhost:9002' : '');
 
 const getHeaders = (includeContentType = true): HeadersInit => {
   const headers: HeadersInit = {};
@@ -24,7 +22,7 @@ export const coursesApi = {
     levels?: string[];
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
-  }) {
+  }, token?: string) {
     const searchParams = new URLSearchParams();
     if (params) {
       if (params.page) searchParams.append('page', params.page.toString());
@@ -37,8 +35,7 @@ export const coursesApi = {
       if (params.sortBy) searchParams.append('sortBy', params.sortBy);
       if (params.sortOrder) searchParams.append('sortOrder', params.sortOrder);
     }
-    const url = `/api/courses${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-    const token = getAuthToken();
+    const url = `${BASE_URL}/api/courses${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
     const res = await fetch(url, { 
       headers: { 
         ...getHeaders(), 
@@ -56,9 +53,10 @@ export const coursesApi = {
     return data;
   },
 
-  async getById(id: string) {
-    const token = getAuthToken();
-    const res = await fetch(`/api/courses/${id}`, { 
+  async getById(id: string, token?: string) {
+    const url = `${BASE_URL}/api/courses/${id}`;
+    console.log('Fetching course by ID:', url)
+    const res = await fetch(url, { 
       headers: { 
         ...getHeaders(), 
         Authorization: token ? `Bearer ${token}` : ''
@@ -70,12 +68,13 @@ export const coursesApi = {
       console.error('Course fetch failed:', { status: res.status, error });
       throw new Error(res.status === 404 ? 'Course not found' : `Failed to fetch course (status: ${res.status})`);
     }
-    return res.json();
+    const data = await res.json();
+    console.log('Course fetched:', data);
+    return data;
   },
 
-  async create(courseData: Partial<ICourse>) {
-    const token = getAuthToken();
-    const res = await fetch('/api/courses', {
+  async create(courseData: Partial<ICourse>, token?: string) {
+    const res = await fetch(`${BASE_URL}/api/courses`, {
       method: 'POST',
       headers: { 
         ...getHeaders(), 
@@ -91,7 +90,7 @@ export const coursesApi = {
     return res.json();
   },
 
-  async update(id: string, courseData: Partial<ICourse>) {
+  async update(id: string, courseData: Partial<ICourse>, token?: string) {
     console.log('Updating course:', { id, courseData }); // Debug log
     if (!id) {
       console.error('Update course error: Course ID is missing');
@@ -106,10 +105,9 @@ export const coursesApi = {
         }
       });
     }
-    const token = getAuthToken();
     // Ensure _id is not included in the body
     const { _id, ...updateData } = courseData;
-    const res = await fetch(`/api/courses/${id}`, {
+    const res = await fetch(`${BASE_URL}/api/courses/${id}`, {
       method: 'PUT',
       headers: { 
         ...getHeaders(), 
@@ -126,9 +124,8 @@ export const coursesApi = {
     return res.json();
   },
 
-  async delete(id: string) {
-    const token = getAuthToken();
-    const res = await fetch(`/api/courses/${id}`, {
+  async delete(id: string, token?: string) {
+    const res = await fetch(`${BASE_URL}/api/courses/${id}`, {
       method: 'DELETE',
       headers: { 
         ...getHeaders(), 
@@ -145,9 +142,8 @@ export const coursesApi = {
 };
 
 export const usersApi = {
-  async getCurrentUser(): Promise<IUser | null> {
-    const token = getAuthToken();
-    const res = await fetch('/api/auth/profile', {
+  async getCurrentUser(token?: string): Promise<IUser | null> {
+    const res = await fetch(`${BASE_URL}/api/auth/profile`, {
       headers: { 
         ...getHeaders(), 
         Authorization: token ? `Bearer ${token}` : ''
@@ -163,9 +159,8 @@ export const usersApi = {
     return data;
   },
 
-  async getByRole(role: 'admin' | 'teacher' | 'student') {
-    const token = getAuthToken();
-    const res = await fetch(`/api/auth/users?role=${role}`, {
+  async getByRole(role: 'admin' | 'teacher' | 'student', token?: string) {
+    const res = await fetch(`${BASE_URL}/api/auth/users?role=${role}`, {
       headers: { 
         ...getHeaders(), 
         Authorization: token ? `Bearer ${token}` : ''
@@ -188,9 +183,8 @@ export const usersApi = {
 };
 
 export const enrollmentApi = {
-  async getEnrollmentRequests(studentId: string) {
-    const token = getAuthToken();
-    const res = await fetch(`/api/enrollments?studentId=${studentId}`, {
+  async getEnrollmentRequests(studentId: string, token?: string) {
+    const res = await fetch(`${BASE_URL}/api/enrollments?studentId=${studentId}`, {
       headers: { 
         ...getHeaders(), 
         Authorization: token ? `Bearer ${token}` : ''
@@ -210,9 +204,8 @@ export const enrollmentApi = {
     return data || [];
   },
 
-  async requestEnrollment(courseId: string, studentId: string) {
-    const token = getAuthToken();
-    const res = await fetch('/api/enrollments', {
+  async requestEnrollment(courseId: string, studentId: string, token?: string) {
+    const res = await fetch(`${BASE_URL}/api/enrollments`, {
       method: 'POST',
       headers: { 
         ...getHeaders(), 
@@ -228,9 +221,8 @@ export const enrollmentApi = {
     return res.json();
   },
 
-  async checkStatus(courseId: string) {
-    const token = getAuthToken();
-    const res = await fetch(`/api/enrollments?courseId=${courseId}`, {
+  async checkStatus(courseId: string, token?: string) {
+    const res = await fetch(`${BASE_URL}/api/enrollments?courseId=${courseId}`, {
       headers: { 
         ...getHeaders(), 
         Authorization: token ? `Bearer ${token}` : ''
@@ -247,12 +239,11 @@ export const enrollmentApi = {
     return res.json();
   },
 
-  async getAll(params?: { status?: 'pending' | 'approved' | 'rejected'; courseId?: string }) {
+  async getAll(params?: { status?: 'pending' | 'approved' | 'rejected'; courseId?: string }, token?: string) {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.append('status', params.status);
     if (params?.courseId) searchParams.append('courseId', params.courseId);
-    const url = `/api/enrollments${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-    const token = getAuthToken();
+    const url = `${BASE_URL}/api/enrollments${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
     const res = await fetch(url, { 
       headers: { 
         ...getHeaders(), 

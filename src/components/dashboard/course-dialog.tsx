@@ -61,7 +61,7 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
       async function fetchTeachers() {
         try {
           const teacherList = await usersApi.getByRole("teacher");
-          console.log('CourseDialog fetched teachers:', teacherList.map(t => ({ _id: t._id, name: t.name, avatarUrl: t.avatarUrl }))); // Debug avatarUrl
+          console.log('CourseDialog fetched teachers:', teacherList.map(t => ({ _id: t._id, name: t.name, avatarUrl: t.avatarUrl })));
           setTeachers(teacherList);
         } catch (error: any) {
           console.error('CourseDialog fetch teachers error:', error);
@@ -106,11 +106,24 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
     form.setValue("imageUrl", "", { shouldValidate: true });
   };
 
+  const handleSubmit = async (data: z.infer<typeof formSchema>) => {
+    try {
+      await onSave(data);
+      // Reset form and image preview after successful submission
+      form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "", teacherIds: [], levels: [] });
+      setImagePreview(null);
+      onOpenChange(false); // Close dialog
+    } catch (error: any) {
+      console.error('CourseDialog submit error:', error);
+      toast({ title: "Error", description: error.message || "Failed to save course.", variant: "destructive" });
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSave)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
             <DialogHeader>
               <DialogTitle>{editingCourse ? "Edit Course" : "Create a new course"}</DialogTitle>
               <DialogDescription>

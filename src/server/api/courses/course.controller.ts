@@ -1,3 +1,4 @@
+// src/server/api/courses/course.controller.ts
 import { NextResponse } from 'next/server';
 import { CourseService } from './course.service';
 import { z } from 'zod';
@@ -45,15 +46,17 @@ export async function POST(request: Request) {
 }
 
 // GET /api/courses - list or get a course by ID
-export async function GET(request: Request) {
+export async function GET(request: Request, { params }: { params?: Promise<{ id: string }> } = {}) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const resolvedParams = params ? await params : undefined;
+    const id = resolvedParams?.id;
 
     if (id) {
       const course = await CourseService.getById(id);
       return NextResponse.json(course);
     }
+
+    const { searchParams } = new URL(request.url);
 
     // Pagination, sorting, and filters
     const page = parseInt(searchParams.get('page') || '1');
