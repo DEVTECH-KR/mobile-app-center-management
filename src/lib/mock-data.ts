@@ -128,9 +128,9 @@ export const MOCK_COURSES: Course[] = [
 ];
 
 export const MOCK_CLASSES: Class[] = [
-    { id: 'class-1', name: 'Room A', courseId: 'course-1', level: 'Beginner', teacherId: 'user-teacher2', studentIds: ['user-1'] },
-    { id: 'class-2', name: 'Lab 1', courseId: 'course-2', level: 'Fundamentals', teacherId: 'user-teacher', studentIds: [] },
-    { id: 'class-3', name: 'Room B', courseId: 'course-3', level: 'First Level', teacherId: null, studentIds: ['user-2'] },
+  { id: 'class-1', name: 'Room A', courseId: 'course-1', level: 'Beginner', teacherId: 'user-teacher2', studentIds: ['user-1'] },
+  { id: 'class-2', name: 'Lab 1', courseId: 'course-2', level: 'Fundamentals', teacherId: 'user-teacher', studentIds: [] },
+  { id: 'class-3', name: 'Room B', courseId: 'course-3', level: 'First Level', teacherId: null, studentIds: ['user-2'] },
 ];
 
 const officeMinerval = MOCK_COURSES.find(c => c.id === 'course-1')?.price || 0;
@@ -185,11 +185,11 @@ export const MOCK_EVENTS: Event[] = [
 ];
 
 export const MOCK_DOCUMENTS: Document[] = [
-    { id: 'doc-1', courseId: 'course-1', title: 'Course Syllabus', type: 'Syllabus', fileUrl: '#', uploadedAt: '2024-01-10', uploaderId: 'user-teacher2' },
-    { id: 'doc-2', courseId: 'course-1', title: 'Excel Basics', type: 'Material', fileUrl: '#', uploadedAt: '2024-01-20', uploaderId: 'user-teacher2' },
-    { id: 'doc-3', courseId: 'course-2', title: 'Intro to JavaScript', type: 'Material', fileUrl: '#', uploadedAt: '2024-02-01', uploaderId: 'user-teacher' },
-    { id: 'doc-4', courseId: 'course-2', title: 'React Hooks Guide', type: 'Material', fileUrl: '#', uploadedAt: '2024-03-05', uploaderId: 'user-teacher' },
-    { id: 'doc-5', courseId: 'course-1', title: 'Advanced Formulas Assignment', type: 'Assignment', fileUrl: '#', uploadedAt: '2024-03-10', uploaderId: 'user-teacher2' },
+  { id: 'doc-1', courseId: 'course-1', title: 'Course Syllabus', type: 'Syllabus', fileUrl: '#', uploadedAt: '2024-01-10', uploaderId: 'user-teacher2' },
+  { id: 'doc-2', courseId: 'course-1', title: 'Excel Basics', type: 'Material', fileUrl: '#', uploadedAt: '2024-01-20', uploaderId: 'user-teacher2' },
+  { id: 'doc-3', courseId: 'course-2', title: 'Intro to JavaScript', type: 'Material', fileUrl: '#', uploadedAt: '2024-02-01', uploaderId: 'user-teacher' },
+  { id: 'doc-4', courseId: 'course-2', title: 'React Hooks Guide', type: 'Material', fileUrl: '#', uploadedAt: '2024-03-05', uploaderId: 'user-teacher' },
+  { id: 'doc-5', courseId: 'course-1', title: 'Advanced Formulas Assignment', type: 'Assignment', fileUrl: '#', uploadedAt: '2024-03-10', uploaderId: 'user-teacher2' },
 ];
 
 export const MOCK_CENTER_INFO: CenterInfo = {
@@ -208,6 +208,6 @@ export const MOCK_PARTNERS: Partner[] = [
 ];
 
 export const MOCK_ENROLLMENT_REQUESTS: EnrollmentRequest[] = [
-    { id: 'req-1', userId: 'user-2', courseId: 'course-3', requestDate: new Date().toISOString(), status: 'pending', userName: 'Jane Smith', userEmail: 'jane@example.com', courseTitle: 'English & French' },
-    { id: 'req-2', userId: 'user-1', courseId: 'course-2', requestDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), status: 'pending', userName: 'Alex Doe', userEmail: 'student@ffbf.com', courseTitle: 'Programming' },
+  { id: 'req-1', userId: 'user-2', courseId: 'course-3', requestDate: new Date().toISOString(), status: 'pending', userName: 'Jane Smith', userEmail: 'jane@example.com', courseTitle: 'English & French' },
+  { id: 'req-2', userId: 'user-1', courseId: 'course-2', requestDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), status: 'pending', userName: 'Alex Doe', userEmail: 'student@ffbf.com', courseTitle: 'Programming' },
 ];

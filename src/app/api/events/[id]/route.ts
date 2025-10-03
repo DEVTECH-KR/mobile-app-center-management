@@ -1,0 +1,1 @@
+export { GET, PUT, DELETE } from '@/server/api/events/events.controller';

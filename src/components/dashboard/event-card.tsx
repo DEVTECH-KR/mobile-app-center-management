@@ -11,7 +11,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 
 export function EventCard({ event, userRole }: { event: Event, userRole: UserRole }) {
   const eventDate = new Date(event.date);
-  const detailsUrl = userRole === 'admin' ? `/dashboard/events/${event.id}` : `/events/${event.id}`;
+  const detailsUrl = userRole === 'student' || 'teacher';
 
   return (
     <Card className="overflow-hidden flex flex-col">
@@ -49,9 +49,13 @@ export function EventCard({ event, userRole }: { event: Event, userRole: UserRol
         <CardDescription>{event.description}</CardDescription>
       </CardContent>
       <CardFooter className="gap-2">
-        <Button variant="outline" className="w-full" asChild>
-            <Link href={detailsUrl}>View Details</Link>
-        </Button>
+        {(userRole === 'student' || userRole === 'teacher') && (
+          <Button variant="outline" className="w-full" asChild>
+            <Link href={`/dashboard/events/${event._id}`}>
+              View Details
+            </Link>
+          </Button>
+        )}
         {!event.isPast && (
             <Button className="w-full">
                 <Gift className="mr-2 h-4 w-4" />

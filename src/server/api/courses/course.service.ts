@@ -4,6 +4,7 @@ import { Types } from 'mongoose';
 
 interface FilterOptions {
   title?: string;
+  description?: string;
   minPrice?: number;
   maxPrice?: number;
   days?: string[];
@@ -42,6 +43,7 @@ export class CourseService {
   ) {
     const query: any = {};
     if (filters.title) query.title = { $regex: filters.title, $options: 'i' };
+    if (filters.description) query.description = { $regex: filters.description, $options: 'i' };
     if (filters.minPrice !== undefined) query.price = { ...query.price, $gte: filters.minPrice };
     if (filters.maxPrice !== undefined) query.price = { ...query.price, $lte: filters.maxPrice };
     if (filters.days?.length) query.days = { $in: filters.days };

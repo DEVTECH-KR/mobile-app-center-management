@@ -1,3 +1,4 @@
+// src/app/dashboard/courses/[id]/page.tsx
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { coursesApi, usersApi, enrollmentApi } from "@/lib/api/courses.api";

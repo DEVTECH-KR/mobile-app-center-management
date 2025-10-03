@@ -1,0 +1,1 @@
+export { GET, POST } from '@/server/api/events/events.controller';

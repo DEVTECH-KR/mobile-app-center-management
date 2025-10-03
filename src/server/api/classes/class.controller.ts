@@ -1,143 +1,68 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { ClassService } from './class.service';
-import { z } from 'zod';
-import { rbacMiddleware } from '@/server/middleware/rbac.middleware';
+import mongoose from 'mongoose';
 
-const classSchema = z.object({
-  name: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  teacherId: z.string(),
-  courseId: z.string(),
-  imageUrl: z.string().optional(),
-  levels: z.array(z.string()),
-});
-
-export async function POST(request: Request) {
-    // Check if user is admin
-    const rbacCheck = await rbacMiddleware(['admin'])(request as any);
-    if (rbacCheck.status !== 200) {
-        return rbacCheck;
-    }
-
-    try {
-        const body = await request.json();
-        const validatedData = classSchema.parse(body);
-        
-        const newclass = await ClassService.create(validatedData);
-        return NextResponse.json(newclass, { status: 201 });
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-        return NextResponse.json(
-            { error: error.errors },
-            { status: 400 }
-        );
-        }
-        return NextResponse.json(
-        { error: 'Failed to create class' },
-        { status: 500 }
-        );
-    }
-}
-
-export async function GET(request: Request) {
+// GET /api/classes - Récupérer toutes les classes avec filtres et pagination
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const filters = {
+      name: searchParams.get('name') || undefined,
+      courseTitle: searchParams.get('courseTitle') || undefined,
+      teacherName: searchParams.get('teacherName') || undefined,
+    };
+    const pagination = {
+      page: parseInt(searchParams.get('page') || '1'),
+      limit: parseInt(searchParams.get('limit') || '10'),
+      sortBy: searchParams.get('sortBy') || 'name',
+      sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc',
+    };
 
-    if (id) {
-      const gotClass = await ClassService.getById(id);
-      return NextResponse.json(gotClass);
-    }
-
-    // Parse pagination and filter parameters
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const sortBy = searchParams.get('sortBy') || 'createdAt';
-    const sortOrder = searchParams.get('sortOrder') || 'desc';
-    
-    // Parse filters
-    const name = searchParams.get('name') || undefined;
-    const description = searchParams.get('description') || undefined;
-    const levels = searchParams.getAll('levels');
-
-    const result = await ClassService.getAll(
-      { name, description, levels: levels.length ? levels : undefined },
-      { page, limit, sortBy, sortOrder: sortOrder as 'asc' | 'desc' }
-    );
-
-    return NextResponse.json(result);
+    const result = await ClassService.getAll(filters, pagination);
+    return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Class not found' ? 404 : 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function PUT(request: Request) {
-  // Check if user is admin
-  const rbacCheck = await rbacMiddleware(['admin'])(request as any);
-  if (rbacCheck.status !== 200) {
-    return rbacCheck;
-  }
-
+// POST /api/classes - Créer une nouvelle classe
+export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Class ID is required' },
-        { status: 400 }
-      );
-    }
-
     const body = await request.json();
-    const validatedData = classSchema.partial().parse(body);
-    
-    const newClass = await ClassService.update(id, validatedData);
-    return NextResponse.json(newClass);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors },
-        { status: 400 }
-      );
-    }
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to update class' },
-      { status: error instanceof Error && error.message === 'Class not found' ? 404 : 500 }
-    );
+    const classDoc = await ClassService.create(body);
+    return NextResponse.json(classDoc, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
 
-export async function DELETE(request: Request) {
-  // Check if user is admin
-  const rbacCheck = await rbacMiddleware(['admin'])(request as any);
-  if (rbacCheck.status !== 200) {
-    return rbacCheck;
-  }
-
+// GET /api/classes/[id] - Récupérer une classe par ID
+export async function GET_BY_ID(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Class ID is required' },
-        { status: 400 }
-      );
-    }
-
-    await ClassService.delete(id);
-    return NextResponse.json(
-      { message: 'Class deleted successfully' },
-      { status: 200 }
-    );
+    const classDoc = await ClassService.getById(params.id);
+    return NextResponse.json(classDoc, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: error.message === 'Class not found' ? 404 : 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: error.message.includes('not found') ? 404 : 500 });
+  }
+}
+
+// PUT /api/classes/[id] - Mettre à jour une classe
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const body = await request.json();
+    const classDoc = await ClassService.update(params.id, body);
+    return NextResponse.json(classDoc, { status: 200 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: error.message.includes('not found') ? 404 : 400 });
+  }
+}
+
+// DELETE /api/classes/[id] - Supprimer une classe
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const classDoc = await ClassService.delete(params.id);
+    return NextResponse.json(classDoc, { status: 200 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: error.message.includes('not found') ? 404 : 500 });
   }
 }

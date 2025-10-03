@@ -1,3 +1,4 @@
+// src/components/dashboard/course-dialog.tsx
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -110,7 +111,20 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
     try {
       await onSave(data);
       // Reset form and image preview after successful submission
-      form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "", teacherIds: [], levels: [] });
+      form.reset(
+        { 
+          title: "", 
+          description: "", 
+          price: 0, 
+          days: [], 
+          startTime: "", 
+          endTime: "", 
+          imageUrl: "", 
+          imageHint: "", 
+          teacherIds: [], 
+          levels: [] 
+        }
+      );
       setImagePreview(null);
       onOpenChange(false); // Close dialog
     } catch (error: any) {

@@ -1,120 +1,92 @@
-import Class from "./class.schema";
-import { Types } from 'mongoose';
+import { ClassModel, IClass } from './class.schema';
+import mongoose, { Types } from 'mongoose';
+import { UserModel, CourseModel } from '../models';
 
 interface FilterOptions {
   name?: string;
-  description?: string,
-  levels?: string[];
+  courseTitle?: string;
+  teacherName?: string;
 }
 
 interface PaginationOptions {
-  page: number;
-  limit: number;
+  page?: number;
+  limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
 
 export class ClassService {
-    static async create(ClassData: any){
-        return await Class.create(ClassData);
+
+  static async create(classData: Partial<IClass>): Promise<IClass> {
+    const classDoc = await ClassModel.create(classData);
+    return classDoc;
+  }
+
+  static async getAll(
+    filters: FilterOptions = {},
+    { page = 1, limit = 10, sortBy = 'name', sortOrder = 'asc' }: PaginationOptions = {}
+  ) {
+    const query: any = {};
+    if (filters.name) query.name = { $regex: filters.name, $options: 'i' };
+    const skip = (page - 1) * limit;
+    const sort: { [key: string]: 1 | -1 } = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+
+    const [classes, total] = await Promise.all([
+      ClassModel.find(query)
+        .populate('teacherId', 'name email avatarUrl')
+        .populate('studentIds', 'name email avatarUrl')
+        .populate('courseId', 'title description price')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit),
+      ClassModel.countDocuments(query),
+    ]);
+
+    console.log("data: ", classes)
+    return {
+      classes,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
+    };
+  }
+
+  static async getById(id: string): Promise<IClass> {
+    if (!Types.ObjectId.isValid(id)) throw new Error('Invalid class ID');
+    const classDoc = await ClassModel.findById(id)
+        .populate('teacherId', 'name email avatarUrl')
+        .populate('studentIds', 'name email avatarUrl');
+
+    if (!classDoc) throw new Error('Class not found');
+    return classDoc;
+  }
+
+  static async update(id: string, updateData: Partial<IClass>): Promise<IClass> {
+    if (!Types.ObjectId.isValid(id)) throw new Error('Invalid class ID');
+    // Validate unique teacherIds
+    if (updateData.studentIds) {
+      const uniqueStudentsIds = [...new Set(updateData.studentIds.map(id => id.toString()))];
+      if (uniqueStudentsIds.length !== updateData.studentIds.length) {
+        throw new Error('Duplicate students IDs are not allowed');
+      }
     }
 
-    static async getAll(
-        filter: FilterOptions = {},
-        { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' }: PaginationOptions
-    ) {
-        const query: any = {};
-
-        // Apply filters
-        if (filter.name) {
-        query.name = { $regex: filter.name, $options: 'i' };
-        }
-
-        if (filter.description) {
-        query.description = { $regex: filter.description, $options: 'i' };
-        }
-
-        if (filter.levels?.length) {
-        query.levels = { $in: filter.levels };
-        }
-
-        // Calculate skip value for pagination
-        const skip = (page - 1) * limit;
-
-        // Prepare sort object
-        const sort: { [key: string]: 1 | -1 } = {
-        [sortBy]: sortOrder === 'asc' ? 1 : -1
-        };
-
-        // Execute query with pagination
-        const [classes, total] = await Promise.all([
-        Class.find(query)
-            .populate('courseId', 'title description price days')
-            .populate('teacherId', 'name email')
-            .sort(sort)
-            .skip(skip)
-            .limit(limit),
-        Class.countDocuments(query)
-        ]);
-
-        return {
-            classes,
-            pagination: {
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit),
-                hasMore: page * limit < total
-            }
-        };
-    }
-
-    static async getById(id: string) {
-        if (!Types.ObjectId.isValid(id)) {
-            throw new Error('Invalid Class ID');
-        }
+    const classDoc = await ClassModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
+        .populate('teacherId', 'name email avatarUrl')
+        .populate('studentIds', 'name email avatarUrl');
         
-        const gotClass = await Class.findById(id)
-            .populate('courseId', 'title description price days')
-            .populate('teacherId', 'name email');
-            
-        if (!gotClass) {
-            throw new Error('class not found');
-        }
-        
-        return gotClass;
-    }
+    if (!classDoc) throw new Error('Class not found');
+    return classDoc;
+  }
 
-    static async update(id: string, updateData: any) {
-        if (!Types.ObjectId.isValid(id)) {
-            throw new Error('Invalid class ID');
-        }
-
-        const newclass = await Class.findByIdAndUpdate(
-        id,
-        updateData,
-        { new: true, runValidators: true }
-        ).populate('courseId', 'title description price days')
-        .populate('teacherId', 'name email');
-
-        if (!newclass) {
-            throw new Error('Class not found');
-        }
-
-        return newclass;
-    }
-
-    static async delete(id: string) {
-        if (!Types.ObjectId.isValid(id)) {
-            throw new Error('Invalid class ID');
-        }
-
-        const deletedClass = await Class.findByIdAndDelete(id);
-        
-        if (!deletedClass) {
-            throw new Error('Class not found');
-        }
-
-        return deletedClass;
-    }
+  static async delete(id: string): Promise<IClass> {
+    if (!Types.ObjectId.isValid(id)) throw new Error('Invalid class ID');
+    const classDoc = await ClassModel.findByIdAndDelete(id);
+    if (!classDoc) throw new Error('Class not found');
+    return classDoc;
+  }
 }

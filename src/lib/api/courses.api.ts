@@ -16,6 +16,7 @@ export const coursesApi = {
     page?: number;
     limit?: number;
     title?: string;
+    description?: string;
     minPrice?: number;
     maxPrice?: number;
     days?: string[];
@@ -28,6 +29,7 @@ export const coursesApi = {
       if (params.page) searchParams.append('page', params.page.toString());
       if (params.limit) searchParams.append('limit', params.limit.toString());
       if (params.title) searchParams.append('title', params.title);
+      if (params.description) searchParams.append('description', params.description);
       if (params.minPrice !== undefined) searchParams.append('minPrice', params.minPrice.toString());
       if (params.maxPrice !== undefined) searchParams.append('maxPrice', params.maxPrice.toString());
       params.days?.forEach(day => searchParams.append('days', day));

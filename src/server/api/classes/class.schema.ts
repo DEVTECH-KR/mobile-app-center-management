@@ -1,40 +1,26 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
-const classSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: [true, 'Name is required'],
-        trim: true,
-    },
+export interface IClass extends Document {
+  name: string;
+  courseId: Types.ObjectId;
+  level?: string;
+  teacherId?: Types.ObjectId;
+  studentIds: Types.ObjectId[];
+}
 
-    description: {
-        type: String,
-        require: [true, 'Description is required'],
-    },
+const classSchema = new Schema<IClass>(
+  {
+    name: { type: String, required: [true, 'Class name is required'], trim: true },
+    courseId: { type: Schema.Types.ObjectId, ref: 'Course' },
+    level: { type: String },
+    teacherId: { type: Schema.Types.ObjectId, ref: 'User' },
+    studentIds: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  },
+  { timestamps: true }
+);
 
-    levels: {
-        type: String,
-        enum: ['Beginner', 'Intermediate', 'Advanced'],
-        default: 'Beginner',
-        required: false,
-    },
 
-    courseId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Course',
-        required: true,
-    },    
+classSchema.index({ name: 1 });
+classSchema.index({ courseId: 1 });
 
-    trainerId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
-    },
-
-    imageUrl: {
-        type: String,
-        reauired: false,
-    }
-});
-
-export const ClassModel = mongoose.models.Class || mongoose.model('Class', classSchema);
+export const ClassModel = mongoose.models.Class || mongoose.model<IClass>('Class', classSchema);
