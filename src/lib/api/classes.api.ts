@@ -103,6 +103,24 @@ export const classesApi = {
     return res.json();
   },
 
+  async getTeachersForCourse(courseId: string, token?: string) {
+    const url = `${BASE_URL}/api/classes?getTeachersForCourse=${courseId}`;
+    const res = await fetch(url, {
+      headers: {
+        ...getHeaders(),
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      console.error('Teachers fetch failed:', { status: res.status, error });
+      throw new Error(error.error || `Failed to fetch teachers (status: ${res.status})`);
+    }
+    const data = await res.json();
+    return data.teachers || [];
+  },
+
   async delete(id: string, token?: string) {
     const res = await fetch(`${BASE_URL}/api/classes/${id}`, {
       method: 'DELETE',

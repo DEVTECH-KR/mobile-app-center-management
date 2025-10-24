@@ -49,6 +49,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { classesApi } from '@/lib/api/classes.api';
 import { coursesApi, usersApi } from '@/lib/api/courses.api';
+import { useAuth } from '@/lib/auth';
 import type { IClass } from '@/server/api/classes/class.schema';
 import type { ICourse } from '@/server/api/courses/course.schema';
 import type { IUser } from '@/server/api/auth/user.schema';
@@ -62,9 +63,10 @@ const formSchema = z.object({
 });
 
 export default function ClassesPage() {
+  const { token } = useAuth();
   const [classes, setClasses] = useState<IClass[]>([]);
   const [courses, setCourses] = useState<ICourse[]>([]);
-  const [teachers, setTeachers] = useState<IUser[]>([]);
+  const [availableTeachers, setAvailableTeachers] = useState<IUser[]>([]);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<IClass | null>(null);
   const [viewingClass, setViewingClass] = useState<IClass | null>(null);
@@ -87,7 +89,7 @@ export default function ClassesPage() {
     async function fetchData() {
       setIsLoading(true);
       try {
-        const user = await usersApi.getCurrentUser();
+        const user = await usersApi.getCurrentUser(token);
         if (!user) {
           toast({ title: 'Error', description: 'Please log in again.', variant: 'destructive' });
           return;
@@ -99,14 +101,12 @@ export default function ClassesPage() {
           return;
         }
 
-        const [courseResult, teacherResult, classResult] = await Promise.all([
-          coursesApi.getAll(),
-          usersApi.getByRole('teacher'),
-          classesApi.getAll({ name: filterName, courseTitle: filterCourseTitle }),
+        const [courseResult, classResult] = await Promise.all([
+          coursesApi.getAll({}, token),
+          classesApi.getAll({ name: filterName, courseTitle: filterCourseTitle }, token),
         ]);
 
         setCourses(courseResult.courses || []);
-        setTeachers(teacherResult || []);
         setClasses(classResult.classes || []);
       } catch (error: any) {
         console.error('Fetch error:', error);
@@ -117,7 +117,7 @@ export default function ClassesPage() {
     }
 
     fetchData();
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
@@ -126,7 +126,7 @@ export default function ClassesPage() {
         const result = await classesApi.getAll({
           name: filterName || undefined,
           courseTitle: filterCourseTitle || undefined,
-        });
+        }, token);
         setClasses(result.classes || []);
       } catch (error: any) {
         console.error('Filter fetch error:', error);
@@ -137,7 +137,26 @@ export default function ClassesPage() {
     return () => {
       if (filterTimeoutRef.current) clearTimeout(filterTimeoutRef.current);
     };
-  }, [filterName, filterCourseTitle]);
+  }, [filterName, filterCourseTitle, token]);
+
+  useEffect(() => {
+    const fetchAvailableTeachers = async () => {
+      if (selectedCourseId) {
+        try {
+          const teachers = await classesApi.getTeachersForCourse(selectedCourseId, token);
+          setAvailableTeachers(teachers);
+        } catch (error: any) {
+          console.error('Fetch teachers error:', error);
+          setAvailableTeachers([]);
+          toast({ title: 'Error', description: 'Failed to load teachers for course.', variant: 'destructive' });
+        }
+      } else {
+        setAvailableTeachers([]);
+      }
+    };
+
+    fetchAvailableTeachers();
+  }, [selectedCourseId, token]);
 
   const handleOpenCreateDialog = () => {
     setEditingClass(null);
@@ -162,11 +181,11 @@ export default function ClassesPage() {
 
   const handleDeleteClass = async (classId: string) => {
     try {
-      await classesApi.delete(classId);
+      await classesApi.delete(classId, token);
       const result = await classesApi.getAll({
         name: filterName || undefined,
         courseTitle: filterCourseTitle || undefined,
-      });
+      }, token);
       setClasses(result.classes || []);
       toast({ title: 'Class Deleted', description: 'The class has been successfully deleted.', variant: 'destructive' });
     } catch (error: any) {
@@ -178,16 +197,16 @@ export default function ClassesPage() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       if (editingClass?._id) {
-        await classesApi.update(String(editingClass._id), values);
+        await classesApi.update(String(editingClass._id), values, token);
         toast({ title: 'Class Updated', description: `The class "${values.name}" has been updated.` });
       } else {
-        await classesApi.create(values);
+        await classesApi.create(values, token);
         toast({ title: 'Class Created', description: `The class "${values.name}" has been successfully created.` });
       }
       const result = await classesApi.getAll({
         name: filterName || undefined,
         courseTitle: filterCourseTitle || undefined,
-      });
+      }, token);
       setClasses(result.classes || []);
       setIsFormDialogOpen(false);
       setEditingClass(null);
@@ -442,14 +461,14 @@ export default function ClassesPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Teacher</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCourseId}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a teacher" />
+                            <SelectValue placeholder={selectedCourseId ? "Select a teacher" : "Select course first"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {teachers.map((teacher) => (
+                          {availableTeachers.map((teacher) => (
                             <SelectItem key={teacher._id} value={teacher._id}>
                               {teacher.name}
                             </SelectItem>

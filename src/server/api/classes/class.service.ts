@@ -1,6 +1,7 @@
 import { ClassModel, IClass } from './class.schema';
 import mongoose, { Types } from 'mongoose';
 import { UserModel, CourseModel } from '../models';
+import { IUser } from '../auth/user.schema';
 
 interface FilterOptions {
   name?: string;
@@ -85,7 +86,7 @@ export class ClassService {
     if (!Types.ObjectId.isValid(id)) throw new Error('Invalid class ID');
 
     // Récupérer l'ancienne classe pour comparer
-    const oldClass = await ClassModel.findById(id);
+    const oldClass = await ClassModel.findById(id).select('teacherId studentIds');
     if (!oldClass) throw new Error('Class not found');
 
     // Validate unique studentIds
@@ -104,16 +105,16 @@ export class ClassService {
 
     // Gérer les changements d'enseignant
     if (updateData.teacherId !== undefined) {
-      const oldTeacherId = oldClass.teacherId?.toString();
-      const newTeacherId = classDoc.teacherId?.toString();
+      const oldTeacherId = oldClass.teacherId ? oldClass.teacherId.toString() : undefined;
+      const newTeacherId = classDoc.teacherId ? (classDoc.teacherId as any)._id.toString() : undefined;
       if (oldTeacherId !== newTeacherId) {
-        if (oldTeacherId) {
+        if (oldTeacherId && mongoose.Types.ObjectId.isValid(oldTeacherId)) {
           await UserModel.updateOne(
             { _id: oldTeacherId, role: 'teacher' },
             { $pull: { classIds: classDoc._id } }
           );
         }
-        if (newTeacherId) {
+        if (newTeacherId && mongoose.Types.ObjectId.isValid(newTeacherId)) {
           await UserModel.updateOne(
             { _id: newTeacherId, role: 'teacher' },
             { $addToSet: { classIds: classDoc._id } }
@@ -122,29 +123,36 @@ export class ClassService {
       }
     }
 
-      // Gérer les changements d'étudiants
-      if (updateData.studentIds !== undefined) {
-        const oldStudentIds = oldClass.studentIds.map((id: mongoose.Types.ObjectId) => id.toString());
-        const newStudentIds = classDoc.studentIds.map((id: mongoose.Types.ObjectId) => id.toString());
-        
-        const removedStudents = oldStudentIds.filter((id: mongoose.Types.ObjectId) => !newStudentIds.includes(id));
-        if (removedStudents.length > 0) {
-          await UserModel.updateMany(
-            { _id: { $in: removedStudents }, role: 'student' },
-            { $pull: { classIds: classDoc._id } }
-          );
-        }
-        
-        const addedStudents = newStudentIds.filter((id: mongoose.Types.ObjectId) => !oldStudentIds.includes(id));
-        if (addedStudents.length > 0) {
-          await UserModel.updateMany(
-            { _id: { $in: addedStudents }, role: 'student' },
-            { $addToSet: { classIds: classDoc._id } }
-          );
-        }
+    // Gérer les changements d'étudiants
+    if (updateData.studentIds !== undefined) {
+      const oldStudentIds = oldClass.studentIds.map((id: mongoose.Types.ObjectId) => id.toString());
+      const newStudentIds = classDoc.studentIds.map((student: any) => student._id ? student._id.toString() : student.toString());
+      
+      const removedStudents = oldStudentIds.filter(id => !newStudentIds.includes(id)).filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (removedStudents.length > 0) {
+        await UserModel.updateMany(
+          { _id: { $in: removedStudents }, role: 'student' },
+          { $pull: { classIds: classDoc._id } }
+        );
+      }
+      
+      const addedStudents = newStudentIds.filter(id => !oldStudentIds.includes(id)).filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (addedStudents.length > 0) {
+        await UserModel.updateMany(
+          { _id: { $in: addedStudents }, role: 'student' },
+          { $addToSet: { classIds: classDoc._id } }
+        );
+      }
     }
 
     return classDoc;
+  }
+
+  static async getTeachersByCourse(courseId: string): Promise<IUser[]> {
+    if (!Types.ObjectId.isValid(courseId)) throw new Error('Invalid course ID');
+    const course = await CourseModel.findById(courseId).populate('teacherIds', 'name email avatarUrl _id');
+    if (!course) throw new Error('Course not found');
+    return course.teacherIds as IUser[];
   }
 
   static async delete(id: string): Promise<IClass> {
@@ -154,17 +162,23 @@ export class ClassService {
 
     // Nettoyer les classIds des utilisateurs
     if (classDoc.teacherId) {
-      await UserModel.updateOne(
-        { _id: classDoc.teacherId, role: 'teacher' },
-        { $pull: { classIds: classDoc._id } }
-      );
+      const teacherId = classDoc.teacherId.toString();
+      if (mongoose.Types.ObjectId.isValid(teacherId)) {
+        await UserModel.updateOne(
+          { _id: teacherId, role: 'teacher' },
+          { $pull: { classIds: classDoc._id } }
+        );
+      }
     }
 
     if (classDoc.studentIds && classDoc.studentIds.length > 0) {
-      await UserModel.updateMany(
-        { _id: { $in: classDoc.studentIds }, role: 'student' },
-        { $pull: { classIds: classDoc._id } }
-      );
+      const studentIds = classDoc.studentIds.map(id => id.toString()).filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (studentIds.length > 0) {
+        await UserModel.updateMany(
+          { _id: { $in: studentIds }, role: 'student' },
+          { $pull: { classIds: classDoc._id } }
+        );
+      }
     }
 
     return classDoc;

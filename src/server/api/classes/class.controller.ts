@@ -6,6 +6,11 @@ import mongoose from 'mongoose';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const getTeachersForCourse = searchParams.get('getTeachersForCourse');
+    if (getTeachersForCourse) {
+      const teachers = await ClassService.getTeachersByCourse(getTeachersForCourse);
+      return NextResponse.json({ teachers }, { status: 200 });
+    }
     const filters = {
       name: searchParams.get('name') || undefined,
       courseTitle: searchParams.get('courseTitle') || undefined,
