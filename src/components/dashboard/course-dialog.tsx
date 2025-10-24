@@ -50,9 +50,22 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
 }) => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [teachers, setTeachers] = useState<IUser[]>([]);
+  const [isLoadingTeachers, setIsLoadingTeachers] = useState(false);
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { teacherIds: [], levels: [], days: [] },
+    defaultValues: { 
+      teacherIds: [], 
+      levels: [], 
+      days: [],
+      title: "",
+      description: "",
+      price: 0,
+      startTime: "",
+      endTime: "",
+      imageUrl: "",
+      imageHint: "",
+    },
   });
 
   const { toast } = useToast();
@@ -60,14 +73,24 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
   useEffect(() => {
     if (isOpen) {
       async function fetchTeachers() {
+        setIsLoadingTeachers(true);
         try {
           const teacherList = await usersApi.getByRole("teacher");
-          console.log('CourseDialog fetched teachers:', teacherList.map(t => ({ _id: t._id, name: t.name, avatarUrl: t.avatarUrl })));
-          setTeachers(teacherList);
+          console.log('Fetched teachers:', teacherList);
+          
+          // S'assurer que teacherList est toujours un tableau
+          const safeTeachers = Array.isArray(teacherList) ? teacherList : [];
+          setTeachers(safeTeachers);
         } catch (error: any) {
           console.error('CourseDialog fetch teachers error:', error);
-          setTeachers([]);
-          toast({ title: "Error", description: "Failed to load instructors.", variant: "destructive" });
+          setTeachers([]); // Toujours définir comme tableau vide
+          toast({ 
+            title: "Error", 
+            description: "Failed to load instructors.", 
+            variant: "destructive" 
+          });
+        } finally {
+          setIsLoadingTeachers(false);
         }
       }
       fetchTeachers();
@@ -75,19 +98,44 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
   }, [isOpen, toast]);
 
   useEffect(() => {
-    if (editingCourse) {
-      form.reset({
+    if (editingCourse && isOpen) {
+      console.log('Setting form values for editing course:', editingCourse);
+      
+      // Préparer les données pour le formulaire
+      const formData = {
         ...editingCourse,
-        teacherIds: editingCourse.teacherIds?.map(t => String(t._id || t)) || [],
-        levels: editingCourse.levels || [],
-        days: editingCourse.days || [],
-      });
+        teacherIds: Array.isArray(editingCourse.teacherIds) 
+          ? editingCourse.teacherIds.map(t => {
+              // Gérer différents formats d'ID d'enseignant
+              if (typeof t === 'string') return t;
+              if (t && typeof t === 'object') return String(t._id || t.id || t);
+              return String(t);
+            }).filter(Boolean)
+          : [],
+        levels: Array.isArray(editingCourse.levels) ? editingCourse.levels : [],
+        days: Array.isArray(editingCourse.days) ? editingCourse.days : [],
+        price: typeof editingCourse.price === 'number' ? editingCourse.price : 0,
+      };
+      
+      form.reset(formData);
       setImagePreview(editingCourse.imageUrl || null);
-    } else {
-      form.reset({ title: "", description: "", price: 0, days: [], startTime: "", endTime: "", imageUrl: "", imageHint: "", teacherIds: [], levels: [] });
+    } else if (!editingCourse && isOpen) {
+      // Reset pour une nouvelle création
+      form.reset({ 
+        title: "", 
+        description: "", 
+        price: 0, 
+        days: [], 
+        startTime: "", 
+        endTime: "", 
+        imageUrl: "", 
+        imageHint: "", 
+        teacherIds: [], 
+        levels: [] 
+      });
       setImagePreview(null);
     }
-  }, [editingCourse, form]);
+  }, [editingCourse, form, isOpen]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -111,26 +159,38 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
     try {
       await onSave(data);
       // Reset form and image preview after successful submission
-      form.reset(
-        { 
-          title: "", 
-          description: "", 
-          price: 0, 
-          days: [], 
-          startTime: "", 
-          endTime: "", 
-          imageUrl: "", 
-          imageHint: "", 
-          teacherIds: [], 
-          levels: [] 
-        }
-      );
+      form.reset({ 
+        title: "", 
+        description: "", 
+        price: 0, 
+        days: [], 
+        startTime: "", 
+        endTime: "", 
+        imageUrl: "", 
+        imageHint: "", 
+        teacherIds: [], 
+        levels: [] 
+      });
       setImagePreview(null);
       onOpenChange(false); // Close dialog
     } catch (error: any) {
       console.error('CourseDialog submit error:', error);
-      toast({ title: "Error", description: error.message || "Failed to save course.", variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to save course.", 
+        variant: "destructive" 
+      });
     }
+  };
+
+  // Fonction utilitaire pour obtenir l'ID d'un enseignant de manière sécurisée
+  const getTeacherId = (teacher: IUser): string => {
+    return String(teacher._id || teacher.id || '');
+  };
+
+  // Fonction utilitaire pour obtenir le nom d'un enseignant de manière sécurisée
+  const getTeacherName = (teacher: IUser): string => {
+    return teacher.name || teacher.email || 'Unknown Teacher';
   };
 
   return (
@@ -184,7 +244,7 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
                               !field.value?.length && "text-muted-foreground"
                             )}
                           >
-                            {field.value?.length > 0
+                            {Array.isArray(field.value) && field.value.length > 0
                               ? field.value.join(", ")
                               : "Select days"}
                             <Clock className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -197,9 +257,9 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
                             <div key={day} className="flex items-center gap-2">
                               <Checkbox
                                 id={`day-${day}`}
-                                checked={field.value?.includes(day)}
+                                checked={Array.isArray(field.value) && field.value.includes(day)}
                                 onCheckedChange={(checked) => {
-                                  const currentDays = field.value || [];
+                                  const currentDays = Array.isArray(field.value) ? field.value : [];
                                   if (checked) {
                                     field.onChange([...currentDays, day]);
                                   } else {
@@ -250,15 +310,12 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
                             >
                               <FormControl>
                                 <Checkbox
-                                  checked={field.value?.includes(level)}
+                                  checked={Array.isArray(field.value) && field.value.includes(level)}
                                   onCheckedChange={(checked) => {
+                                    const currentLevels = Array.isArray(field.value) ? field.value : [];
                                     return checked
-                                      ? field.onChange([...(field.value || []), level])
-                                      : field.onChange(
-                                          (field.value || [])?.filter(
-                                            (value) => value !== level
-                                          )
-                                        );
+                                      ? field.onChange([...currentLevels, level])
+                                      : field.onChange(currentLevels.filter((value) => value !== level));
                                   }}
                                 />
                               </FormControl>
@@ -285,53 +342,79 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
                             variant="outline"
                             role="combobox"
                             className="w-full justify-between"
+                            disabled={isLoadingTeachers}
                           >
                             <span className="truncate">
-                              {field.value?.length > 0
-                                ? field.value
-                                    .map(id => teachers.find(t => t._id.toString() === id)?.name || id)
-                                    .join(", ")
-                                : "Select instructors"}
+                              {isLoadingTeachers ? (
+                                "Loading instructors..."
+                              ) : Array.isArray(field.value) && field.value.length > 0 ? (
+                                field.value
+                                  .map(id => {
+                                    const teacher = teachers.find(t => getTeacherId(t) === id);
+                                    return teacher ? getTeacherName(teacher) : id;
+                                  })
+                                  .join(", ")
+                              ) : (
+                                "Select instructors"
+                              )}
                             </span>
-                            <Users className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            {isLoadingTeachers ? (
+                              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Users className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            )}
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                         <Command>
                           <CommandInput placeholder="Search instructors..." />
-                          <CommandEmpty>No instructor found.</CommandEmpty>
+                          <CommandEmpty>
+                            {isLoadingTeachers ? "Loading..." : "No instructor found."}
+                          </CommandEmpty>
                           <CommandGroup>
                             <CommandList>
-                              {teachers.length === 0 ? (
+                              {isLoadingTeachers ? (
+                                <div className="p-2 text-center">
+                                  <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                  <p className="text-sm text-muted-foreground mt-1">Loading instructors...</p>
+                                </div>
+                              ) : !Array.isArray(teachers) || teachers.length === 0 ? (
                                 <div className="p-2 text-muted-foreground">No instructors available</div>
                               ) : (
-                                teachers.map((teacher) => (
-                                  <CommandItem
-                                    value={teacher.name || teacher.email}
-                                    key={teacher._id}
-                                    onSelect={() => {
-                                      const currentIds = field.value || [];
-                                      if (currentIds.includes(String(teacher._id))) {
-                                        field.onChange(currentIds.filter((id) => id !== String(teacher._id)));
-                                      } else {
-                                        field.onChange([...currentIds, String(teacher._id)]);
-                                      }
-                                    }}
-                                  >
-                                    <CheckIcon
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        field.value?.includes(String(teacher._id)) ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    <Avatar className="h-6 w-6 mr-2">
-                                      <AvatarImage src={teacher.avatarUrl || ''} alt={teacher.name || teacher.email} />
-                                      <AvatarFallback>{(teacher.name || teacher.email).charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    {teacher.name || teacher.email}
-                                  </CommandItem>
-                                ))
+                                teachers.map((teacher) => {
+                                  const teacherId = getTeacherId(teacher);
+                                  const isSelected = Array.isArray(field.value) && field.value.includes(teacherId);
+                                  
+                                  return (
+                                    <CommandItem
+                                      value={getTeacherName(teacher)}
+                                      key={teacherId}
+                                      onSelect={() => {
+                                        const currentIds = Array.isArray(field.value) ? field.value : [];
+                                        if (isSelected) {
+                                          field.onChange(currentIds.filter((id) => id !== teacherId));
+                                        } else {
+                                          field.onChange([...currentIds, teacherId]);
+                                        }
+                                      }}
+                                    >
+                                      <CheckIcon
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          isSelected ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      <Avatar className="h-6 w-6 mr-2">
+                                        <AvatarImage src={teacher.avatarUrl || ''} alt={getTeacherName(teacher)} />
+                                        <AvatarFallback>
+                                          {getTeacherName(teacher).charAt(0).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      {getTeacherName(teacher)}
+                                    </CommandItem>
+                                  );
+                                })
                               )}
                             </CommandList>
                           </CommandGroup>
@@ -399,9 +482,12 @@ export const CourseDialog: React.FC<CourseDialogProps> = ({
             </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
+              <Button 
+                type="submit" 
+                disabled={form.formState.isSubmitting || !form.formState.isDirty}
+              >
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
+                {editingCourse ? "Update Course" : "Create Course"}
               </Button>
             </DialogFooter>
           </form>

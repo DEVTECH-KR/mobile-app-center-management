@@ -1,4 +1,6 @@
 // src/server/api/courses/course.service.ts
+import mongoose from 'mongoose';
+import { UserModel } from '../models';
 import { CourseModel, ICourse } from './course.schema';
 import { Types } from 'mongoose';
 
@@ -31,6 +33,15 @@ export class CourseService {
       }
     }
     const course = await CourseModel.create(courseData);
+    
+    // Mettre à jour enrolledCourseIds des enseignants
+    if (courseData.teacherIds && courseData.teacherIds.length > 0) {
+      await UserModel.updateMany(
+        { _id: { $in: courseData.teacherIds }, role: 'teacher' },
+        { $addToSet: { enrolledCourseIds: course._id } }
+      );
+    }
+
     return course.populate('teacherIds', 'name email avatarUrl');
   }
 
@@ -87,8 +98,14 @@ export class CourseService {
   // ============================
   // Mettre à jour un cours
   // ============================
+
   static async update(id: string, updateData: Partial<ICourse>): Promise<ICourse> {
     if (!Types.ObjectId.isValid(id)) throw new Error('Invalid course ID');
+    
+    // Récupérer l'ancien cours pour comparer les teacherIds
+    const oldCourse = await CourseModel.findById(id);
+    if (!oldCourse) throw new Error('Course not found');
+    
     // Validate unique teacherIds
     if (updateData.teacherIds) {
       const uniqueTeacherIds = [...new Set(updateData.teacherIds.map(id => id.toString()))];
@@ -96,12 +113,38 @@ export class CourseService {
         throw new Error('Duplicate teacher IDs are not allowed');
       }
     }
+    
     const course = await CourseModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
       .populate('teacherIds', 'name email avatarUrl'); 
     if (!course) throw new Error('Course not found');
+    
+    // ✅ NOUVEAU: Gérer les changements d'enseignants
+    if (updateData.teacherIds !== undefined) {
+      const oldTeacherIds = oldCourse.teacherIds.map((id: mongoose.Types.ObjectId) => id.toString());
+      const newTeacherIds = updateData.teacherIds.map((id: mongoose.Types.ObjectId) => id.toString());
+      
+      // Retirer le cours des anciens enseignants qui ne sont plus assignés
+      const removedTeachers = oldTeacherIds.filter((id: mongoose.Types.ObjectId) => !newTeacherIds.includes(id));
+      if (removedTeachers.length > 0) {
+        await UserModel.updateMany(
+          { _id: { $in: removedTeachers }, role: 'teacher' },
+          { $pull: { enrolledCourseIds: course._id } }
+        );
+      }
+      
+      // Ajouter le cours aux nouveaux enseignants
+      const addedTeachers = newTeacherIds.filter(id => !oldTeacherIds.includes(id));
+      if (addedTeachers.length > 0) {
+        await UserModel.updateMany(
+          { _id: { $in: addedTeachers }, role: 'teacher' },
+          { $addToSet: { enrolledCourseIds: course._id } }
+        );
+      }
+    }
+    
     return course;
   }
-
+  
   // ============================
   // Supprimer un cours
   // ============================
@@ -109,6 +152,15 @@ export class CourseService {
     if (!Types.ObjectId.isValid(id)) throw new Error('Invalid course ID');
     const course = await CourseModel.findByIdAndDelete(id);
     if (!course) throw new Error('Course not found');
+
+    // Nettoyer les enrolledCourseIds des enseignants
+    if (course.teacherIds && course.teacherIds.length > 0) {
+      await UserModel.updateMany(
+        { _id: { $in: course.teacherIds }, role: 'teacher' },
+        { $pull: { enrolledCourseIds: course._id } }
+      );
+    }
+
     return course;
   }
 }

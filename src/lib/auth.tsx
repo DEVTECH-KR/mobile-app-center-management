@@ -12,6 +12,7 @@ interface User {
   name: string;
   email: string;
   role: UserRole;
+  status?: 'active' | 'banned' | 'pending' | 'inactive';
   gender?: 'male' | 'female' | 'other' | undefined;
   nationality?: string;
   otherNationality?: string;
@@ -20,17 +21,20 @@ interface User {
   address?: string;
   phone?: string;
   avatarUrl?: string | null;
+  promotion?: string;
+  classIds?: string[];
   preferences?: {
     theme?: "light" | "dark";
     language?: "fr" | "en";
   };
+  token?: string; // Ajout du token dans l'interface User
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
+  register: (userData: RegisterData) => Promise<any>;
   logout: () => void;
   isLoading: boolean;
   setAuthUser: (user: User) => void;
@@ -41,12 +45,14 @@ interface RegisterData {
   email: string;
   password: string;
   role?: string;
+  status?: string;
   gender: string;
   nationality: string;
   educationLevel: string;
   university?: string;
   address?: string;
   phone?: string;
+  promotion?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -103,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
         name: data.name,
         email: data.email,
         role: data.role,
+        status: data.status,
         gender: (['male', 'female', 'other'].includes(data.gender) ? data.gender : undefined) as
           | 'male'
           | 'female'
@@ -115,12 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
         address: data.address,
         phone: data.phone,
         avatarUrl: data.avatarUrl ?? null,
-        preferences: data.preferences || { theme: "light", language: "fr" }
+        classIds: data.classIds?.map((id: any) => id.toString()) || [],
+        promotion: data.promotion,
+        preferences: data.preferences || { theme: "light", language: "fr" },
+        token: token // Stocker le token dans l'objet user
       };
 
       setUser(mapped);
 
-      // ✅ Appliquer le thème de l’utilisateur
+      // ✅ Appliquer le thème de l'utilisateur
       if (mapped.preferences?.theme) {
         setTheme(mapped.preferences.theme);
       }
@@ -211,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     }
   };
 
-  // register stays mostly unchanged (server returns created user+token)
+  // register avec support pour role et status
   const register = async (userData: RegisterData) => {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
@@ -222,13 +232,6 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     const data = await res.json();
     if (data.error) {
       throw new Error(data.error);
-    }
-
-    // Optionally, store token and fetch profile (if server sends token immediately)
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-      setToken(data.token);
-      await fetchProfile(data.token);
     }
 
     return data;
@@ -248,13 +251,13 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
+        status: updatedUser.status,
       };
       localStorage.setItem('user', JSON.stringify(minimal));
     } catch (err) {
       console.error('Erreur stockage minimal user:', err);
     }
   };
-
 
   return (
     <AuthContext.Provider

@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { AuthService } from './auth.service';
 import connectDB from '@/server/config/mongodb';
+import { rbacMiddleware } from '@/server/middleware/rbac.middleware';
 
 export async function POST(req: Request) {
   try {
@@ -73,7 +74,7 @@ export async function getProfile(req: Request) {
     }
     
     const user = await AuthService.getProfile(userId);
-    console.log('Controller getProfile: Returning user:', { id: user._id, email: user.email, role: user.role }); // FIXED: Debug log
+    console.log('Controller getProfile: Returning user:', { id: user._id, email: user.email, role: user.role });
     return NextResponse.json(user);
   } catch (error: any) {
     console.error('Controller getProfile error:', error);
@@ -92,7 +93,7 @@ export async function updateProfile(req: Request) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     const body = await req.json();
     console.log('Update body:', body);
     const updated = await AuthService.updateProfile(userId, body);
@@ -144,6 +145,80 @@ export async function updatePreferences(req: Request) {
     return NextResponse.json({ message: 'Preferences updated', preferences: updatedPreferences });
   } catch (error: any) {
     console.error('Controller updatePreferences error:', error);
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}
+
+export async function updateRoleAndStatus(req: Request) {
+  try {
+    await connectDB();
+    const rbacCheck = await rbacMiddleware(['admin'])(req as any);
+    if (rbacCheck.status !== 200) {
+      return rbacCheck;
+    }
+
+    const body = await req.json();
+    const { userId, role, status } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+
+    const updated = await AuthService.updateRoleAndStatus(userId, { role, status });
+    return NextResponse.json(updated);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}
+
+export async function assignClasses(req: Request) {
+  try {
+    await connectDB();
+    const rbacCheck = await rbacMiddleware(['admin'])(req as any);
+    if (rbacCheck.status !== 200) {
+      return rbacCheck;
+    }
+
+    const body = await req.json();
+    const { userId, classIds } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+
+    if (!Array.isArray(classIds)) {
+      return NextResponse.json({ error: 'classIds must be an array' }, { status: 400 });
+    }
+
+    const updated = await AuthService.assignClasses(userId, classIds);
+    return NextResponse.json(updated);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}
+
+export async function removeFromClass(req: Request) {
+  try {
+    await connectDB();
+    const rbacCheck = await rbacMiddleware(['admin'])(req as any);
+    if (rbacCheck.status !== 200) {
+      return rbacCheck;
+    }
+
+    const body = await req.json();
+    const { userId, classId } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    }
+
+    if (!classId) {
+      return NextResponse.json({ error: 'Class ID is required' }, { status: 400 });
+    }
+
+    const updated = await AuthService.removeFromClass(userId, classId);
+    return NextResponse.json(updated);
+  } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }

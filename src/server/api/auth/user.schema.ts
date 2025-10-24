@@ -6,6 +6,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: 'student' | 'teacher' | 'admin';
+  status: 'active' | 'banned' | 'pending' | 'inactive';
   avatarUrl?: string;
   enrolledCourseIds: mongoose.Types.ObjectId[];
   classIds: mongoose.Types.ObjectId[];
@@ -28,6 +29,7 @@ export interface IUser extends Document {
     theme: 'light' | 'dark' | 'system';
     language: 'fr' | 'en';
   };
+  promotion?: string;
 }
 
 const userSchema = new Schema<IUser>({
@@ -35,6 +37,7 @@ const userSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true, minlength: 6 },
   role: { type: String, enum: ['student', 'teacher', 'admin'], default: 'student' },
+  status: { type: String, enum: ['active', 'banned', 'pending', 'inactive'], default: 'pending' },
   avatarUrl: { type: String, default: '' },
   enrolledCourseIds: [{ type: Schema.Types.ObjectId, ref: 'Course' }],
   classIds: [{ type: Schema.Types.ObjectId, ref: 'Class' }],
@@ -56,7 +59,8 @@ const userSchema = new Schema<IUser>({
   preferences: {
     theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
     language: { type: String, enum: ['fr', 'en'], default: 'fr' }
-  }
+  },
+  promotion: { type: String },
 }, { timestamps: true });
 
 // Supprime password dans le JSON
@@ -65,6 +69,11 @@ userSchema.methods.toJSON = function() {
   delete obj.password;
   return obj;
 };
+
+// Indices pour optimiser les recherches
+// userSchema.index({ email: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ status: 1 });
 
 // ✅ Modèle Mongoose
 export const UserModel = mongoose.models.User || mongoose.model<IUser>('User', userSchema);

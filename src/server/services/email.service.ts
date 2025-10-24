@@ -56,4 +56,24 @@ export class EmailService {
       `
     });
   }
+
+  static async sendEnrollmentRejection(to: string, data: {
+    studentName: string;
+    courseName: string;
+    reason: string;
+  }) {
+    const transporter = await this.getTransporter();
+    
+    await transporter.sendMail({
+      to,
+      subject: 'Enrollment Request Rejection',
+      html: `
+        <h1>Enrollment Rejection</h1>
+        <p>Dear ${data.studentName},</p>
+        <p>We are very sorry that your enrollement request has been rejected!</p>
+        <p>Reason: ${data.reason}</p>
+        <p>You now have full access to course materials and resources.</p>
+      `
+    });
+  }
 }

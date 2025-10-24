@@ -162,25 +162,31 @@ export const usersApi = {
   },
 
   async getByRole(role: 'admin' | 'teacher' | 'student', token?: string) {
-    const res = await fetch(`${BASE_URL}/api/auth/users?role=${role}`, {
-      headers: { 
-        ...getHeaders(), 
-        Authorization: token ? `Bearer ${token}` : ''
-      },
-      credentials: 'include',
-    });
-    if (!res.ok) {
-      if (res.status === 404) {
-        console.log(`No users found for role: ${role}`); 
-        return [];
+    try {
+      const res = await fetch(`${BASE_URL}/api/auth/users?role=${role}`, {
+        headers: { 
+          ...getHeaders(), 
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        if (res.status === 404) {
+          console.log(`No users found for role: ${role}`); 
+          return [];
+        }
+        const error = await res.json().catch(() => ({}));
+        console.error('Users fetch failed:', { status: res.status, error });
+        throw new Error(error.error || `Failed to fetch users (status: ${res.status})`);
       }
-      const error = await res.json().catch(() => ({}));
-      console.error('Users fetch failed:', { status: res.status, error });
-      throw new Error(error.error || `Failed to fetch users (status: ${res.status})`);
+      const data = await res.json();
+      console.log('Users fetched for role:', role, data); 
+
+      return Array.isArray(data) ? data : (Array.isArray(data?.users) ? data.users : []);
+    } catch (error: any) {
+      console.error('Error in getByRole:', error);
+      return [];
     }
-    const data = await res.json();
-    console.log('Users fetched for role:', role, data); 
-    return data || [];
   },
 };
 

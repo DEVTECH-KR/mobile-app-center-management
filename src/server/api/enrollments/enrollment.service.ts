@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { EnrollmentModel } from './enrollment.schema';
 import { UserModel } from '../auth/user.schema';
 import { CourseModel } from '../courses/course.schema';
+import { EmailService } from '@/server/services/email.service'
 
 export class EnrollmentService {
   // Create a new enrollment request
@@ -37,10 +38,24 @@ export class EnrollmentService {
     });
 
     // Populate and return the created request
-    return await enrollmentRequest.populate([
+    const dataToPopulate =  await enrollmentRequest.populate([
       { path: 'studentId', select: 'name email avatarUrl' },
       { path: 'courseId', select: 'title price' }
     ]);
+
+    // const params = {
+    //   studentName: '',
+    //   courseName: 'string',
+    //   centerAddress: 'string',
+    //   adminContact: 'string'
+    // }
+    // // Send enrollement request email
+    // await EmailService.sendEnrollmentRequestConfirmation(
+    //   dataToPopulate.email, 
+    //   params
+    // )
+
+    return dataToPopulate;
   }
 
   // Get enrollment request by ID
