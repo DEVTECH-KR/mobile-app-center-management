@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 const EnrollmentSchema = z.object({
   courseId: z.string(),
+  preferredLevel: z.string().optional(),
   userId: z.string().optional(),
   status: z.enum(['pending', 'approved', 'rejected']).optional(),
 });
@@ -19,12 +20,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { studentId, courseId } = await request.json();
-    console.log('Controller POST enrollment: Request body:', { studentId, courseId }); // FIXED: Debug log
-    const enrollmentRequest = await EnrollmentService.createRequest(studentId, courseId);
+    const { studentId, courseId, preferredLevel } = await request.json();
+    console.log('Controller POST enrollment: Request body:', { studentId, courseId, preferredLevel });
+    const enrollmentRequest = await EnrollmentService.createRequest(studentId, courseId, preferredLevel);
     return NextResponse.json(enrollmentRequest, { status: 201 });
   } catch (error: any) {
-    console.error('Controller POST enrollment error:', error); // FIXED: Debug log
+    console.error('Controller POST enrollment error:', error);
     return NextResponse.json(
       { error: error.message },
       { status: error.message.includes('already') ? 400 : 500 }
@@ -38,8 +39,10 @@ export async function GET(request: Request) {
   const studentId = searchParams.get('studentId');
   const status = searchParams.get('status') as 'pending' | 'approved' | 'rejected' | undefined;
   const courseId = searchParams.get('courseId') || undefined;
+  const month = searchParams.get('month');
+  const year = searchParams.get('year');
 
-  console.log('Controller GET enrollments: Query:', { studentId, status, courseId }); // FIXED: Debug log
+  console.log('Controller GET enrollments: Query:', { studentId, status, courseId, month, year });
 
   // If studentId is provided, only allow that student or admin
   const allowedRoles: AllowedRoles[] = studentId ? ['admin', 'student'] : ['admin'];
@@ -53,13 +56,30 @@ export async function GET(request: Request) {
     if (studentId) {
       requests = await EnrollmentService.getStudentRequests(studentId);
     } else {
+      // ✅ Gestion des filtres par date
+      let dateFrom: Date | undefined;
+      let dateTo: Date | undefined;
+      
+      if (month && year && month !== 'all' && year !== 'all') {
+        // Premier jour du mois
+        dateFrom = new Date(parseInt(year), parseInt(month) - 1, 1);
+        // Dernier jour du mois
+        dateTo = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
+      } else if (year && year !== 'all') {
+        // Toute l'année
+        dateFrom = new Date(parseInt(year), 0, 1);
+        dateTo = new Date(parseInt(year), 11, 31, 23, 59, 59);
+      }
+
       requests = await EnrollmentService.getAllRequests({ 
         ...(status && { status }), 
-        ...(courseId && { courseId }) 
+        ...(courseId && { courseId }),
+        ...(dateFrom && { dateFrom }),
+        ...(dateTo && { dateTo })
       });
     }
-    console.log('Controller GET enrollments: Found:', requests.length); // FIXED: Debug log
-    return NextResponse.json(requests); // FIXED: Return array (even if empty)
+    console.log('Controller GET enrollments: Found:', requests.length);
+    return NextResponse.json(requests);
   } catch (error: any) {
     console.error('Controller GET enrollments error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -74,14 +94,24 @@ export async function approve(request: Request) {
   }
 
   try {
-    const { requestId, classId, adminNotes } = await request.json();
+    const body = await request.json();
+    console.log('Controller approve enrollment: Request body:', body);
+    
+    const { requestId, classId, adminNotes, assignedBy } = body;
+    
+    if (!requestId || !classId || !assignedBy) {
+      throw new Error('Missing required fields: requestId, classId, assignedBy');
+    }
+
     const updatedRequest = await EnrollmentService.approveRequest(requestId, {
       classId,
-      adminNotes
+      adminNotes,
+      assignedBy
     });
+    
     return NextResponse.json(updatedRequest);
   } catch (error: any) {
-    console.error('Controller approve enrollment error:', error); // FIXED: Debug log
+    console.error('Controller approve enrollment error:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 400 }
@@ -97,11 +127,23 @@ export async function reject(request: Request) {
   }
 
   try {
-    const { requestId, adminNotes } = await request.json();
-    const updatedRequest = await EnrollmentService.rejectRequest(requestId, adminNotes);
+    const body = await request.json();
+    console.log('Controller reject enrollment: Request body:', body);
+    
+    const { requestId, adminNotes, assignedBy } = body;
+    
+    if (!requestId || !assignedBy) {
+      throw new Error('Missing required fields: requestId, assignedBy');
+    }
+
+    const updatedRequest = await EnrollmentService.rejectRequest(requestId, { 
+      adminNotes, 
+      assignedBy 
+    });
+    
     return NextResponse.json(updatedRequest);
   } catch (error: any) {
-    console.error('Controller reject enrollment error:', error); // FIXED: Debug log
+    console.error('Controller reject enrollment error:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 400 }
@@ -118,10 +160,13 @@ export async function recordPayment(request: Request) {
 
   try {
     const { requestId } = await request.json();
+    console.log('Controller recordPayment: Request ID:', requestId);
+    
     const updatedRequest = await EnrollmentService.recordPayment(requestId);
+    
     return NextResponse.json(updatedRequest);
   } catch (error: any) {
-    console.error('Controller recordPayment error:', error); // FIXED: Debug log
+    console.error('Controller recordPayment error:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 400 }
@@ -140,7 +185,7 @@ export async function getStatistics(request: Request) {
     const stats = await EnrollmentService.getStatistics();
     return NextResponse.json(stats);
   } catch (error: any) {
-    console.error('Controller getStatistics error:', error); // FIXED: Debug log
+    console.error('Controller getStatistics error:', error);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -154,7 +199,7 @@ export async function getCourseStatus(request: Request) {
   const studentId = searchParams.get("studentId");
   const courseId = searchParams.get("courseId");
 
-  console.log('Controller getCourseStatus: Query:', { studentId, courseId }); // FIXED: Debug log
+  console.log('Controller getCourseStatus: Query:', { studentId, courseId });
 
   if (!studentId || !courseId) {
     return NextResponse.json(
@@ -173,7 +218,33 @@ export async function getCourseStatus(request: Request) {
     const status = await EnrollmentService.getCourseStatus(studentId, courseId);
     return NextResponse.json(status);
   } catch (error: any) {
-    console.error('Controller getCourseStatus error:', error); // FIXED: Debug log
+    console.error('Controller getCourseStatus error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// Only admin can delete requests
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  const rbacCheck = await rbacMiddleware(['admin'])(request as any);
+  if (rbacCheck.status !== 200) {
+    return rbacCheck;
+  }
+
+  try {
+    const { id } = params;
+    const { deletedBy } = await request.json();
+    
+    if (!deletedBy) {
+      throw new Error('Missing required field: deletedBy');
+    }
+
+    const result = await EnrollmentService.deleteRequest(id, deletedBy);
+    return NextResponse.json(result, { status: 200 });
+  } catch (error: any) {
+    console.error('Controller DELETE enrollment error:', error);
+    return NextResponse.json(
+      { error: error.message },
+      { status: error.message.includes('not found') ? 404 : 400 }
+    );
   }
 }

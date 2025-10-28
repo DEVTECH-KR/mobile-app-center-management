@@ -14,10 +14,12 @@ export const classesApi = {
     page?: number;
     limit?: number;
     name?: string;
+    courseId?: string;
     courseTitle?: string;
     teacherName?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    availableForEnrollment?: string;
   }, token?: string) {
     const searchParams = new URLSearchParams();
     if (params) {
@@ -28,6 +30,9 @@ export const classesApi = {
       if (params.teacherName) searchParams.append('teacherName', params.teacherName);
       if (params.sortBy) searchParams.append('sortBy', params.sortBy);
       if (params.sortOrder) searchParams.append('sortOrder', params.sortOrder);
+      if (params.availableForEnrollment) {
+        searchParams.append('availableForEnrollment', params.availableForEnrollment);
+      }    
     }
     const url = `${BASE_URL}/api/classes${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
     const res = await fetch(url, {
@@ -136,4 +141,29 @@ export const classesApi = {
     }
     return res.json();
   },
+
+  async getAvailableForEnrollment(courseId: string, preferredLevel?: string, token?: string) {
+    const searchParams = new URLSearchParams();
+    searchParams.append('availableForEnrollment', 'true');
+    searchParams.append('courseId', courseId);
+    if (preferredLevel) searchParams.append('preferredLevel', preferredLevel);
+
+    const url = `${BASE_URL}/api/classes?${searchParams.toString()}`;
+    const res = await fetch(url, {
+      headers: {
+        ...getHeaders(),
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+      credentials: 'include',
+    });
+    
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || `Failed to fetch available classes`);
+    }
+    
+    const data = await res.json();
+    return data.classes || [];
+  },
+  
 };

@@ -19,7 +19,7 @@ interface CourseCardUserProps {
   isEnrolled?: boolean;
   hasPendingRequest?: boolean;
   isRejected?: boolean;
-  onEnroll?: (courseId: string) => void;
+  // onEnroll?: (courseId: string) => void;
 }
 
 export const CourseCardUser: React.FC<CourseCardUserProps> = ({
@@ -28,7 +28,7 @@ export const CourseCardUser: React.FC<CourseCardUserProps> = ({
   isEnrolled,
   hasPendingRequest,
   isRejected,
-  onEnroll,
+  // onEnroll,
 }) => {
   const schedule = `${course.days?.join(', ') || ""} | ${course.startTime ?? ""} - ${course.endTime ?? ""}`;
 
@@ -40,12 +40,12 @@ export const CourseCardUser: React.FC<CourseCardUserProps> = ({
       return { text: "Enrolled", icon: CheckCircle, disabled: true, href: `/dashboard/courses/${course._id}` };
     }
     if (hasPendingRequest) {
-      return { text: "Request Pending", icon: Hourglass, disabled: true, href: `/dashboard/courses/${course._id}` };
+      return { text: "Request Pending", icon: Hourglass, disabled: true };
     }
     if (isRejected) {
       return { text: "Request Rejected", icon: XCircle, disabled: true, href: `/dashboard/courses/${course._id}` };
     }
-    return { text: "Enroll Now", icon: BookOpen, disabled: false, action: () => onEnroll?.(String(course._id)) };
+    return { text: "View Details", icon: Eye, disabled: false, href: `/dashboard/courses/${course._id}` };
   };
 
   const buttonState = getButtonState();

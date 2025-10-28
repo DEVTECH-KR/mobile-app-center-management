@@ -1,6 +1,7 @@
+// src/components/dashboard/admin-payment-manager.tsx
+'use client';
 
-"use client";
-
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -11,7 +12,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MOCK_USERS, MOCK_PAYMENTS, MOCK_COURSES, MOCK_CLASSES } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
@@ -23,238 +23,354 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileUp, Loader2, Search } from "lucide-react";
-import { useState } from "react";
-import type { Installment, PaymentDetails, User, Class, Course } from "@/lib/types";
+import { FileUp, Loader2, Search, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { statusColors } from "./payment-status";
 import { Checkbox } from "../ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { paymentsApi } from '@/lib/api/payments.api';
+import { useAuth } from '@/lib/auth';
+import { 
+  PaymentFilters, 
+  InstallmentStatus, 
+  EnrollmentStatus,
+  PaymentValidation,
+  PaymentFilterType 
+} from '@/lib/types/payment.types';
+import { statusColors } from '@/lib/constants/status-colors';
+import { PaymentFiltersComponent } from '../payments/payment-filters';
 
-
-type StudentEnrollment = {
-    user: User;
-    class: Class;
-    course: Course;
-    paymentDetails: PaymentDetails | null;
+interface AdminPaymentManagerProps {
+  payments: any[];
+  onUpdate: () => void;
 }
 
-const createInitialEnrollments = (): StudentEnrollment[] => {
-    const enrollments: StudentEnrollment[] = [];
-    const allUsers = Object.values(MOCK_USERS);
+export function AdminPaymentManager({ payments, onUpdate }: AdminPaymentManagerProps) {
+  const { user, token } = useAuth();
+  const { toast } = useToast();
+  
+  const [selectedPayment, setSelectedPayment] = useState<any | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingInstallments, setPendingInstallments] = useState<any[]>([]);
+  const [validationResult, setValidationResult] = useState<PaymentValidation | null>(null);
+  
+  // ✅ Improved filters
+  const [filters, setFilters] = useState<PaymentFilters>({
+    status: [],
+    courseId: [],
+    classId: [],
+    dateRange: { from: null, to: null },
+    searchTerm: ''
+  });
 
-    allUsers.forEach(user => {
-        if (user.role === 'student' && user.classIds) {
-            user.classIds.forEach(classId => {
-                const cls = MOCK_CLASSES.find(c => c.id === classId);
-                if (cls) {
-                    const course = MOCK_COURSES.find(c => c.id === cls.courseId);
-                    if (course) {
-                         // Find or create payment details for this specific enrollment
-                         let paymentDetails: PaymentDetails | null = null;
-                         if (user.id === 'user-1' && course.id === 'course-1') {
-                            paymentDetails = JSON.parse(JSON.stringify(MOCK_PAYMENTS));
-                         } else { // Create some default/mock payment details for others
-                             const totalDue = course.price + 20000; // price + registration
-                             paymentDetails = {
-                                userId: user.id,
-                                courseId: course.id,
-                                registrationFee: 20000,
-                                totalDue: totalDue,
-                                totalPaid: 0,
-                                installments: [
-                                    { name: 'Registration Fee', amount: 20000, status: 'Unpaid', dueDate: '2024-08-01' },
-                                    { name: 'Installment 1', amount: course.price / 4, status: 'Unpaid', dueDate: '2024-09-01' },
-                                    { name: 'Installment 2', amount: course.price / 4, status: 'Unpaid', dueDate: '2024-10-01' },
-                                    { name: 'Installment 3', amount: course.price / 4, status: 'Unpaid', dueDate: '2024-11-01' },
-                                    { name: 'Installment 4', amount: course.price / 4, status: 'Unpaid', dueDate: '2024-12-01' },
-                                ]
-                             };
-                             if (user.id === 'user-2') { // Give student2 a partially paid status
-                                 paymentDetails.totalPaid = 20000 + (course.price / 4);
-                                 paymentDetails.installments[0].status = 'Paid';
-                                 paymentDetails.installments[1].status = 'Paid';
-                             }
-                         }
-
-                        enrollments.push({
-                            user,
-                            class: cls,
-                            course,
-                            paymentDetails,
-                        });
-                    }
-                }
-            });
-        }
-    });
-
-    return enrollments;
-}
-
-
-export function AdminPaymentManager() {
-    const [enrollments, setEnrollments] = useState<StudentEnrollment[]>(createInitialEnrollments());
-    const [selectedEnrollment, setSelectedEnrollment] = useState<StudentEnrollment | null>(null);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [pendingInstallments, setPendingInstallments] = useState<Installment[]>([]);
-    const [filter, setFilter] = useState({classId: 'all', searchTerm: ''});
-    const { toast } = useToast();
-
-    const handleOpenDialog = (enrollment: StudentEnrollment) => {
-        if (!enrollment.paymentDetails) return;
-        setSelectedEnrollment(enrollment);
-        setPendingInstallments(JSON.parse(JSON.stringify(enrollment.paymentDetails.installments)));
-        setIsDialogOpen(true);
-    };
-
-    const handleInstallmentToggle = (installmentName: string) => {
-        setPendingInstallments(prev => prev.map(inst =>
-            inst.name === installmentName
-                ? { ...inst, status: inst.status === 'Paid' ? 'Unpaid' : 'Paid' }
-                : inst
-        ));
-    };
-
-    const handleSaveChanges = () => {
-        if (!selectedEnrollment || !selectedEnrollment.paymentDetails) return;
-        
-        setIsSubmitting(true);
-        setTimeout(() => {
-            const newTotalPaid = pendingInstallments
-                .filter(i => i.status === 'Paid')
-                .reduce((sum, i) => sum + i.amount, 0);
-
-            const updatedPaymentDetails: PaymentDetails = {
-                ...selectedEnrollment.paymentDetails!,
-                installments: pendingInstallments,
-                totalPaid: newTotalPaid,
-            };
-
-            setEnrollments(prev => prev.map(e =>
-                (e.user.id === selectedEnrollment.user.id && e.class.id === selectedEnrollment.class.id)
-                    ? { ...e, paymentDetails: updatedPaymentDetails }
-                    : e
-            ));
-
-            setIsSubmitting(false);
-            setIsDialogOpen(false);
-            setSelectedEnrollment(null);
-            toast({
-                title: "Payment Updated",
-                description: `Payment record for ${selectedEnrollment.user.name} has been successfully updated.`,
-            });
-        }, 500);
-    };
-
-    const currencyFormatter = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "FBU",
-        minimumFractionDigits: 0,
-    });
-
-    const filteredEnrollments = enrollments.filter(e => {
-        const matchesClass = filter.classId === 'all' || e.class.id === filter.classId;
-        const matchesSearch = filter.searchTerm === '' ||
-            e.user.name.toLowerCase().includes(filter.searchTerm.toLowerCase()) ||
-            e.user.email.toLowerCase().includes(filter.searchTerm.toLowerCase());
-        return matchesClass && matchesSearch;
-    });
+  /**
+   * Validates if a payment can be modified
+   */
+  const validatePaymentAction = async (payment: any): Promise<PaymentValidation> => {
+    // ✅ CORRECTION: Handle both string and object enrollmentId
+    let enrollmentId: string | null = null;
     
+    if (typeof payment.enrollmentId === 'string') {
+      enrollmentId = payment.enrollmentId;
+    } else if (payment.enrollmentId && payment.enrollmentId._id) {
+      enrollmentId = payment.enrollmentId._id;
+    }
+
+    if (!enrollmentId) {
+      return {
+        isValid: false,
+        allowed: false,
+        message: 'No enrollment associated with this payment'
+      };
+    }
+
+    try {
+      const response = await fetch(`/api/enrollments/${enrollmentId}`);
+      if (!response.ok) {
+        return {
+          isValid: false,
+          allowed: false,
+          message: 'Unable to verify enrollment status'
+        };
+      }
+
+      const enrollment = await response.json();
+      
+      if (enrollment.status === EnrollmentStatus.REJECTED) {
+        return {
+          isValid: false,
+          allowed: false,
+          message: 'Cannot modify payment for a rejected enrollment',
+          enrollmentStatus: EnrollmentStatus.REJECTED
+        };
+      }
+
+      return {
+        isValid: true,
+        allowed: true,
+        enrollmentStatus: enrollment.status
+      };
+    } catch (error) {
+      return {
+        isValid: false,
+        allowed: false,
+        message: 'Error validating payment'
+      };
+    }
+  };
+
+  /**
+   * Opens the modification dialog with validation
+   */
+  const handleOpenDialog = async (payment: any) => {
+    if (!token) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Authentication required",
+      });
+      return;
+    }
+
+    // ✅ Validation before opening
+    const validation = await validatePaymentAction(payment);
+    setValidationResult(validation);
+
+    if (!validation.allowed) {
+      toast({
+        variant: "destructive",
+        title: "Action not allowed",
+        description: validation.message,
+      });
+      return;
+    }
+
+    setSelectedPayment(payment);
+    setPendingInstallments(JSON.parse(JSON.stringify(payment.installments)));
+    setIsDialogOpen(true);
+  };
+
+  /**
+   * Toggles installment status with validation
+   */
+const handleInstallmentToggle = (installmentName: string, currentStatus: InstallmentStatus) => {
+  if (!selectedPayment) return;
+
+  // ✅ ONLY PREVENT UNCHECKING IF IT'S ALREADY PAID IN THE DATABASE
+  const originalInstallment = selectedPayment.installments.find((inst: any) => inst.name === installmentName);
+  
+  // If it's already paid in the database, don't allow any changes
+  if (originalInstallment && originalInstallment.status === InstallmentStatus.PAID) {
+    toast({
+      variant: "destructive",
+      title: "Cannot modify",
+      description: "This installment is already paid and cannot be modified",
+    });
+    return;
+  }
+
+  // ✅ ALLOW TOGGLE FOR PENDING CHANGES
+  setPendingInstallments(prev => prev.map(inst =>
+    inst.name === installmentName
+      ? { 
+          ...inst, 
+          status: inst.status === InstallmentStatus.PAID ? InstallmentStatus.UNPAID : InstallmentStatus.PAID 
+        }
+      : inst
+  ));
+};
+
+  /**
+   * Saves changes with enhanced validation
+   */
+  const handleSaveChanges = async () => {
+    if (!selectedPayment || !token) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Missing data",
+      });
+      return;
+    }
+
+    // ✅ Re-validate before saving
+    const finalValidation = await validatePaymentAction(selectedPayment);
+    if (!finalValidation.allowed) {
+      toast({
+        variant: "destructive",
+        title: "Action not allowed",
+        description: finalValidation.message,
+      });
+      setIsDialogOpen(false);
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const originalInstallments = selectedPayment.installments;
+      let hasChanges = false;
+      const processedInstallments: string[] = [];
+      
+      // ✅ Process only valid changes
+      for (const inst of pendingInstallments) {
+        const originalInst = originalInstallments.find((i: any) => i.name === inst.name);
+        
+        // Check if status changed and if it's valid
+        if (originalInst && inst.status !== originalInst.status) {
+          
+          // ✅ Prevent double payment
+          if (originalInst.status === InstallmentStatus.PAID && inst.status === InstallmentStatus.PAID) {
+            console.warn(`Installment ${inst.name} already paid, skipped`);
+            continue;
+          }
+
+          // ✅ Record payment
+          if (inst.status === InstallmentStatus.PAID) {
+            console.log(`Recording payment for: ${inst.name}`);
+            await paymentsApi.recordPayment(selectedPayment._id, inst.name, token);
+            processedInstallments.push(inst.name);
+            hasChanges = true;
+          }
+        }
+      }
+
+      if (!hasChanges) {
+        toast({
+          title: "No changes",
+          description: "No payment status changes were made",
+        });
+        return;
+      }
+
+      toast({
+        title: "Payment updated",
+        description: `Updated installment(s): ${processedInstallments.join(', ')}`,
+      });
+      
+      onUpdate();
+      setIsDialogOpen(false);
+      setValidationResult(null);
+    } catch (error: any) {
+      console.error('Payment update error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update payment",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Applies filters to payments
+   */
+  const filteredPayments = payments.filter(payment => {
+    const matchesSearch = filters.searchTerm === '' ||
+      payment.studentId.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      payment.studentId.email.toLowerCase().includes(filters.searchTerm.toLowerCase());
+
+    return matchesSearch;
+  });
+
+  const currencyFormatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "FBU",
+    minimumFractionDigits: 0,
+  });
+
+  /**
+   * Resets all filters
+   */
+  const handleClearFilters = () => {
+    setFilters({
+      status: [],
+      courseId: [],
+      classId: [],
+      dateRange: { from: null, to: null },
+      searchTerm: ''
+    });
+  };
+
+  /**
+   * Gets enrollment status from payment
+   */
+  const getEnrollmentStatus = (payment: any): EnrollmentStatus | 'unknown' => {
+    if (typeof payment.enrollmentId === 'string') {
+      return 'unknown'; // Need to fetch separately
+    } else if (payment.enrollmentId && payment.enrollmentId.status) {
+      return payment.enrollmentId.status;
+    }
+    return 'unknown';
+  };
+
   return (
     <>
-      <div className="mb-4 flex flex-col md:flex-row items-center gap-4">
-          <div className="relative w-full md:max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
-              <Input
-                placeholder="Filter by student name or email..."
-                className="pl-9"
-                value={filter.searchTerm}
-                onChange={(e) => setFilter(prev => ({...prev, searchTerm: e.target.value}))}
-              />
-          </div>
-          <Select value={filter.classId} onValueChange={(value) => setFilter(prev => ({...prev, classId: value}))}>
-              <SelectTrigger className="w-full md:w-[280px]">
-                  <SelectValue placeholder="Filter by class" />
-              </SelectTrigger>
-              <SelectContent>
-                  <SelectItem value="all">All Classes</SelectItem>
-                  {MOCK_CLASSES.map(c => {
-                      const course = MOCK_COURSES.find(co => co.id === c.courseId);
-                      return <SelectItem key={c.id} value={c.id}>{c.name} ({course?.title})</SelectItem>
-                  })}
-              </SelectContent>
-          </Select>
-      </div>
+      {/* ✅ Enhanced filters component */}
+      <PaymentFiltersComponent
+        filters={filters}
+        onFiltersChange={setFilters}
+        onClearFilters={handleClearFilters}
+      />
+
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Student</TableHead>
-              <TableHead>Class</TableHead>
+              <TableHead>Course</TableHead>
               <TableHead>Payment Progress</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Action</TableHead>
+              <TableHead>Enrollment</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEnrollments.length === 0 && (
-                <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">No results found.</TableCell>
-                </TableRow>
+            {filteredPayments.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  {payments.length === 0 ? "No payments found" : "No results with current filters"}
+                </TableCell>
+              </TableRow>
             )}
-            {filteredEnrollments.map((enrollment) => {
-              const { user, course, class: cls, paymentDetails } = enrollment;
-
-              if (!paymentDetails) {
-                 return (
-                    <TableRow key={`${user.id}-${cls.id}`}>
-                        <TableCell>
-                            <div className="flex items-center gap-3">
-                                <Avatar>
-                                    <AvatarImage src={user.avatarUrl} alt={user.name} />
-                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <div className="font-medium">{user.name}</div>
-                                    <div className="text-sm text-muted-foreground">{user.email}</div>
-                                </div>
-                            </div>
-                        </TableCell>
-                         <TableCell>{cls.name} ({course.title})</TableCell>
-                        <TableCell colSpan={3} className="text-muted-foreground text-center">No payment records found.</TableCell>
-                    </TableRow>
-                 )
-              }
-              const { totalPaid, totalDue } = paymentDetails;
+            
+            {filteredPayments.map((payment) => {
+              const { totalPaid, totalDue } = payment;
               const progress = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
               const isFullyPaid = progress >= 100;
               
+              // ✅ Enrollment status for indication
+              const enrollmentStatus = getEnrollmentStatus(payment);
+              
               return (
-                <TableRow key={`${user.id}-${cls.id}`}>
+                <TableRow key={payment._id}>
                   <TableCell>
-                     <div className="flex items-center gap-3">
-                        <Avatar>
-                            <AvatarImage src={user.avatarUrl} alt={user.name} />
-                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-sm text-muted-foreground">{user.email}</div>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={payment.studentId.avatarUrl} alt={payment.studentId.name} />
+                        <AvatarFallback>{payment.studentId.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{payment.studentId.name}</div>
+                        <div className="text-sm text-muted-foreground">{payment.studentId.email}</div>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                      <div className="font-medium">{cls.name}</div>
-                      <div className="text-sm text-muted-foreground">{course.title} - {cls.level}</div>
+                    <div className="font-medium">{payment.courseId.title}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {currencyFormatter.format(payment.courseId.price)}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       <Progress value={progress} />
-                      <span className="text-xs text-muted-foreground">{currencyFormatter.format(totalPaid)} / {currencyFormatter.format(totalDue)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {currencyFormatter.format(totalPaid)} / {currencyFormatter.format(totalDue)}
+                        ({progress.toFixed(0)}%)
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -262,9 +378,33 @@ export function AdminPaymentManager() {
                       {isFullyPaid ? "Fully Paid" : progress > 0 ? "Partial" : "Unpaid"}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={
+                        enrollmentStatus === EnrollmentStatus.APPROVED ? "default" :
+                        enrollmentStatus === EnrollmentStatus.PENDING ? "secondary" : "destructive"
+                      }
+                    >
+                      {enrollmentStatus === EnrollmentStatus.APPROVED && <CheckCircle className="h-3 w-3 mr-1" />}
+                      {enrollmentStatus === EnrollmentStatus.REJECTED && <XCircle className="h-3 w-3 mr-1" />}
+                      {enrollmentStatus}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenDialog(enrollment)}>
-                      Update Payment
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleOpenDialog(payment)}
+                      disabled={enrollmentStatus === EnrollmentStatus.REJECTED}
+                    >
+                      {enrollmentStatus === EnrollmentStatus.REJECTED ? (
+                        <>
+                          <AlertTriangle className="h-4 w-4 mr-1" />
+                          Blocked
+                        </>
+                      ) : (
+                        "Update Payment"
+                      )}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -274,49 +414,145 @@ export function AdminPaymentManager() {
         </Table>
       </div>
 
+      {/* ✅ Modification dialog with validation */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Update Payment for {selectedEnrollment?.user.name}</DialogTitle>
-            <DialogDescription>
-              Course: {selectedEnrollment?.course.title} - {selectedEnrollment?.class.level}
-            </DialogDescription>
+            <DialogTitle>
+              Update Payment - {selectedPayment?.studentId.name}
+            </DialogTitle>
+            
+            {/* ✅ Structure corrigée : séparation du DialogDescription et du contenu div */}
+            <div className="space-y-2">
+              <DialogDescription>
+                Course: {selectedPayment?.courseId.title}
+              </DialogDescription>
+              
+              {validationResult && (
+                <div className={cn(
+                  "p-2 rounded text-sm",
+                  validationResult.allowed 
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
+                )}>
+                  {validationResult.allowed ? (
+                    <CheckCircle className="h-4 w-4 inline mr-1" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 inline mr-1" />
+                  )}
+                  {validationResult.message}
+                </div>
+              )}
+            </div>
           </DialogHeader>
+          
           <div className="grid gap-4 py-4">
             <p className="font-medium">Installments:</p>
-            <div className="space-y-2">
-            {pendingInstallments.map(inst => (
-                <div key={inst.name} className={cn("flex items-center justify-between rounded-md border p-3 transition-colors", inst.status === 'Paid' && 'bg-primary/10')}>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {pendingInstallments.map(inst => {
+                const originalInst = selectedPayment?.installments.find((i: any) => i.name === inst.name);
+                const isAlreadyPaid = originalInst?.status === InstallmentStatus.PAID;
+                
+                return (
+                  <div 
+                    key={inst.name} 
+                    className={cn(
+                      "flex items-center justify-between rounded-md border p-3 transition-colors",
+                      inst.status === InstallmentStatus.PAID && 'bg-primary/10',
+                      isAlreadyPaid && 'bg-green-50 border-green-200'
+                    )}
+                  >
                     <div className="flex items-center gap-3">
-                         <Checkbox
-                            id={`inst-${inst.name}`}
-                            checked={inst.status === 'Paid'}
-                            onCheckedChange={() => handleInstallmentToggle(inst.name)}
-                         />
-                         <div>
-                            <Label htmlFor={`inst-${inst.name}`} className="font-medium">{inst.name}</Label>
-                            <p className="text-sm text-muted-foreground">{currencyFormatter.format(inst.amount)}</p>
-                        </div>
+                      <Checkbox
+                        id={`inst-${inst.name}`}
+                        checked={inst.status === InstallmentStatus.PAID}
+                        onCheckedChange={() => handleInstallmentToggle(inst.name, inst.status)}
+                        disabled={isAlreadyPaid || !validationResult?.allowed}
+                      />
+                      <div>
+                        <Label 
+                          htmlFor={`inst-${inst.name}`} 
+                          className={cn(
+                            "font-medium",
+                            isAlreadyPaid && "text-green-700"
+                          )}
+                        >
+                          {inst.name}
+                          {isAlreadyPaid && (
+                            <Badge variant="outline" className="ml-2 text-xs text-bold">
+                              Already Paid
+                            </Badge>
+                          )}
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          {currencyFormatter.format(inst.amount)}
+                          {inst.dueDate && (
+                            <span className="ml-2">
+                              Due: {new Date(inst.dueDate).toLocaleDateString('en-US')}
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </div>
                     <Badge className={cn(statusColors[inst.status])}>
-                        {inst.status}
+                      {inst.status}
                     </Badge>
-                </div>
-            ))}
+                  </div>
+                );
+              })}
             </div>
-             <div className="grid w-full max-w-sm items-center gap-1.5 mt-4">
-                <Label htmlFor="payment-proof">Payment Proof (Optional)</Label>
-                <div className="flex items-center gap-2">
-                    <Input id="payment-proof" type="file" className="flex-1"/>
-                    <Button size="icon" variant="outline"><FileUp className="h-4 w-4"/></Button>
+            
+            {/* Payment Summary */}
+            {selectedPayment && (
+              <div className="border-t pt-4 space-y-2">
+                <div className="flex justify-between items-center font-medium">
+                  <span>Total Paid:</span>
+                  <span>{currencyFormatter.format(selectedPayment.totalPaid)}</span>
                 </div>
+                <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <span>Total Due:</span>
+                  <span>{currencyFormatter.format(selectedPayment.totalDue)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span>Remaining:</span>
+                  <span className={selectedPayment.totalDue - selectedPayment.totalPaid > 0 ? "text-orange-600 font-medium" : "text-green-600 font-medium"}>
+                    {currencyFormatter.format(selectedPayment.totalDue - selectedPayment.totalPaid)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Proof (Optional) */}
+            <div className="grid w-full items-center gap-1.5 mt-4">
+              <Label htmlFor="payment-proof">Payment Proof (Optional)</Label>
+              <div className="flex items-center gap-2">
+                <Input id="payment-proof" type="file" className="flex-1" accept=".pdf,.jpg,.jpeg,.png" />
+                <Button size="icon" variant="outline">
+                  <FileUp className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Accepted formats: PDF, JPG, PNG (max. 5MB)
+              </p>
             </div>
           </div>
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveChanges} disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsDialogOpen(false);
+                setValidationResult(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveChanges} 
+              disabled={isSubmitting || !validationResult?.allowed}
+            >
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -324,5 +560,3 @@ export function AdminPaymentManager() {
     </>
   );
 }
-
-    

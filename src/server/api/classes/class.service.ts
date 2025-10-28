@@ -7,6 +7,7 @@ interface FilterOptions {
   name?: string;
   courseTitle?: string;
   teacherName?: string;
+  courseId?: string;
 }
 
 interface PaginationOptions {
@@ -45,6 +46,7 @@ export class ClassService {
   ) {
     const query: any = {};
     if (filters.name) query.name = { $regex: filters.name, $options: 'i' };
+    if (filters.courseId) query.courseId = filters.courseId;
     const skip = (page - 1) * limit;
     const sort: { [key: string]: 1 | -1 } = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
@@ -183,4 +185,23 @@ export class ClassService {
 
     return classDoc;
   }
+
+  static async getAvailableClassesForEnrollment(courseId: string, preferredLevel?: string) {
+    const query: any = { courseId };
+    
+    if (preferredLevel && preferredLevel !== 'Not specified') {
+      query.level = preferredLevel;
+    }
+
+    console.log('Searching for classes with query:', query);
+
+    const classes = await ClassModel.find(query)
+      .populate('teacherId', 'name')
+      .select('name level schedule teacherId');
+
+    console.log('Found classes:', classes);
+
+    return classes;
+  }
+  
 }

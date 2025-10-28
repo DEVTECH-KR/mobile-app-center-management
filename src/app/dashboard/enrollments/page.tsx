@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FilePen, MoreVertical, Search, CheckCircle, XCircle, Hourglass } from "lucide-react";
+import { FilePen, MoreVertical, Search, CheckCircle, XCircle, Hourglass, FilterX } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -28,6 +28,9 @@ import { useAuth } from "@/lib/auth";
 import { Loader2 } from "lucide-react";
 import { AdminEnrollmentManager } from "@/components/enrollments/admin-enrollment-manager";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import Link from 'next/link';
+import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type EnrollmentStatus = IEnrollment['status'];
 
@@ -52,23 +55,40 @@ const statusVariant: Record<EnrollmentStatus, { variant: "default" | "secondary"
     rejected: { variant: "destructive", icon: XCircle },
 }
 
+// ✅ Interface pour les filtres
+interface EnrollmentFilters {
+  searchTerm: string;
+  status: EnrollmentStatus | 'all';
+  month: string;
+  year: string;
+}
+
 export default function EnrollmentRequestsPage() {
-    const { user } = useAuth(); 
+    const { user, token } = useAuth(); 
     const [requests, setRequests] = useState<PopulatedEnrollment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [filters, setFilters] = useState<EnrollmentFilters>({
+      searchTerm: '',
+      status: 'all',
+      month: 'all',
+      year: 'all'
+    });
     const [selectedRequest, setSelectedRequest] = useState<PopulatedEnrollment | null>(null);
     
     useEffect(() => {
         if (user) {
             fetchRequests();
         }
-    }, [user]);
+    }, [user, token]);
 
     const fetchRequests = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('/api/enrollments');
+            const response = await fetch('/api/enrollments', {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
             if (!response.ok) throw new Error();
             const data = await response.json();
             setRequests(data);
@@ -81,10 +101,57 @@ export default function EnrollmentRequestsPage() {
 
     const filteredRequests = useMemo(() => {
         return requests.filter(request => {
-            return request.studentId.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                   request.studentId.email.toLowerCase().includes(searchTerm.toLowerCase())
+            // Filtre par recherche
+            const matchesSearch = filters.searchTerm === '' ||
+              request.studentId.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+              request.studentId.email.toLowerCase().includes(filters.searchTerm.toLowerCase());
+
+            // Filtre par statut
+            const matchesStatus = filters.status === 'all' || request.status === filters.status;
+
+            // Filtre par mois
+            const requestMonth = format(request.requestDate, 'yyyy-MM');
+            const matchesMonth = filters.month === 'all' || requestMonth === `${filters.year}-${filters.month}`;
+
+            // Filtre par année
+            const requestYear = format(request.requestDate, 'yyyy');
+            const matchesYear = filters.year === 'all' || requestYear === filters.year;
+
+            return matchesSearch && matchesStatus && matchesMonth && matchesYear;
         });
-    }, [requests, searchTerm]);
+    }, [requests, filters]);
+
+    // ✅ Obtenir les années et mois uniques disponibles
+    const availableYears = useMemo(() => {
+      const years = [...new Set(requests.map(request => format(request.requestDate, 'yyyy')))];
+      return years.sort().reverse();
+    }, [requests]);
+
+    const availableMonths = useMemo(() => {
+      if (filters.year === 'all') return [];
+      const months = [...new Set(
+        requests
+          .filter(request => format(request.requestDate, 'yyyy') === filters.year)
+          .map(request => format(request.requestDate, 'MM'))
+      )];
+      return months.sort().reverse();
+    }, [requests, filters.year]);
+
+    // ✅ Effacer tous les filtres
+    const clearFilters = () => {
+      setFilters({
+        searchTerm: '',
+        status: 'all',
+        month: 'all',
+        year: 'all'
+      });
+    };
+
+    // ✅ Vérifier s'il y a des filtres actifs
+    const hasActiveFilters = filters.searchTerm !== '' || 
+                           filters.status !== 'all' || 
+                           filters.month !== 'all' || 
+                           filters.year !== 'all';
 
     if (isLoading) {
         return <Loader2 className="animate-spin" />;
@@ -109,19 +176,174 @@ export default function EnrollmentRequestsPage() {
                 </p>
             </div>
 
-            <div className="flex items-center gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
+            {/* Statistiques rapides */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total</p>
+                      <p className="text-2xl font-bold">{requests.length}</p>
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-sm font-medium text-blue-600">All</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                      <p className="text-2xl font-bold">
+                        {requests.filter(r => r.status === 'pending').length}
+                      </p>
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                      <Hourglass className="h-4 w-4 text-yellow-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Approved</p>
+                      <p className="text-2xl font-bold">
+                        {requests.filter(r => r.status === 'approved').length}
+                      </p>
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Rejected</p>
+                      <p className="text-2xl font-bold">
+                        {requests.filter(r => r.status === 'rejected').length}
+                      </p>
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                      <XCircle className="h-4 w-4 text-red-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* ✅ Filtres améliorés */}
+            <Card className="mb-6">
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-4">
+                  {/* Ligne 1: Barre de recherche */}
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
                         type="search"
                         placeholder="Search by name or email..."
                         className="w-full rounded-lg bg-background pl-8"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-            </div>
+                        value={filters.searchTerm}
+                        onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                      />
+                    </div>
+                    
+                    {hasActiveFilters && (
+                      <Button variant="outline" onClick={clearFilters} className="shrink-0">
+                        <FilterX className="h-4 w-4 mr-2" />
+                        Clear
+                      </Button>
+                    )}
+                  </div>
 
+                  {/* Ligne 2: Filtres par statut, mois et année */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Filtre par statut */}
+                    <div className="flex-1">
+                      <Select
+                        value={filters.status}
+                        onValueChange={(value: EnrollmentStatus | 'all') => 
+                          setFilters(prev => ({ ...prev, status: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Filter by status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="approved">Approved</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Filtre par année */}
+                    <div className="flex-1">
+                      <Select
+                        value={filters.year}
+                        onValueChange={(value) => {
+                          setFilters(prev => ({ 
+                            ...prev, 
+                            year: value,
+                            month: value === 'all' ? 'all' : prev.month // Réinitialiser le mois si année = all
+                          }));
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Filter by year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Years</SelectItem>
+                          {availableYears.map(year => (
+                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Filtre par mois */}
+                    <div className="flex-1">
+                      <Select
+                        value={filters.month}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, month: value }))}
+                        disabled={filters.year === 'all'}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={filters.year === 'all' ? "Select year first" : "Filter by month"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Months</SelectItem>
+                          {availableMonths.map(month => {
+                            const monthNames = [
+                              'January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'
+                            ];
+                            return (
+                              <SelectItem key={month} value={month}>
+                                {monthNames[parseInt(month) - 1]}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tableau */}
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
@@ -134,7 +356,14 @@ export default function EnrollmentRequestsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredRequests.map((request) => {
+                        {filteredRequests.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center">
+                              {requests.length === 0 ? "No enrollment requests found" : "No results with current filters"}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredRequests.map((request) => {
                             const StatusIcon = statusVariant[request.status].icon;
                             const statusBadgeVariant = statusVariant[request.status].variant;
 
@@ -161,31 +390,19 @@ export default function EnrollmentRequestsPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="outline" onClick={() => setSelectedRequest(request)}>
-                                            <FilePen className="mr-2 h-4 w-4" />
-                                            Manage
+                                        <Button variant="outline" asChild>
+                                            <Link href={`/dashboard/enrollments/${request._id}`}>
+                                                View Details
+                                            </Link>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
                             )
-                        })}
+                          })
+                        )}
                     </TableBody>
                 </Table>
             </div>
-
-            <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
-                <DialogContent>
-                    {selectedRequest && (
-                        <AdminEnrollmentManager 
-                            enrollment={selectedRequest}
-                            onStatusUpdate={() => {
-                                fetchRequests();
-                                setSelectedRequest(null);
-                            }}
-                        />
-                    )}
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

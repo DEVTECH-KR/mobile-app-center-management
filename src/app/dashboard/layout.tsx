@@ -13,7 +13,7 @@ import {
   SidebarTrigger,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Home, Library, CreditCard, Calendar, FileText, Settings, Shield, User as UserIcon, LogOut, BookMarked, Send, Lock } from 'lucide-react';
+import { Home, Library, CreditCard, Calendar, FileText, Settings, Shield, User as UserIcon, LogOut, BookMarked, Send, Lock, Receipt } from 'lucide-react'; // AJOUT: Receipt icon
 import { UserNav } from "@/components/dashboard/user-nav";
 import Link from "next/link";
 import Logo from "@/components/icons/logo";
@@ -34,6 +34,7 @@ const navConfig = {
     { href: "/dashboard/enrollments", icon: Send, label: "Enrollment Requests"},
     { href: "/dashboard/courses", icon: Library, label: "Manage Courses" },
     { href: "/dashboard/classes", icon: BookMarked, label: "Manage Classes" },
+    { href: "/dashboard/payment-templates", icon: Receipt, label: "Payment Templates" }, // NOUVEAU: Menu dédié
     { href: "/dashboard/payments", icon: CreditCard, label: "Manage Payments" },
     { href: "/dashboard/users", icon: UserIcon, label: "Manage Users" },
     { href: "/dashboard/events", icon: Calendar,label: "Manage Events" },
@@ -47,7 +48,6 @@ const navConfig = {
     { href: "/dashboard/events", icon: Calendar, label: "Events" },
   ],
 };
-
 
 export default function DashboardLayout({
   children,

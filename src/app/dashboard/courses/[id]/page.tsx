@@ -1,10 +1,10 @@
+// 
 // src/app/dashboard/courses/[id]/page.tsx
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
-import { coursesApi, usersApi, enrollmentApi } from "@/lib/api/courses.api";
+import { coursesApi, usersApi } from "@/lib/api/courses.api";
 import type { ICourse } from "@/server/api/courses/course.schema";
 import type { IUser } from "@/server/api/auth/user.schema";
-import type { IEnrollment } from "@/server/api/enrollments/enrollment.schema";
 import ClientCourseDetails from "./client";
 
 async function fetchCourseData(id: string, token?: string) {
@@ -32,15 +32,19 @@ async function fetchUserData(token?: string) {
 
 async function fetchEnrollmentStatus(courseId: string, userId: string, token?: string) {
   try {
-    const enrollments: IEnrollment[] = await enrollmentApi.getByCourse(courseId, token);
-    const userEnrollment = enrollments.find(e => e.studentId === userId);
-    return {
-      hasPendingRequest: userEnrollment?.status === "pending",
-      isEnrolled: userEnrollment?.status === "approved",
-      isRejected: userEnrollment?.status === "rejected",
-    };
+    const response = await fetch(`/api/enrollments/status?studentId=${userId}&courseId=${courseId}`, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+    });
+    if (!response.ok) {
+      if (response.status === 404) return { status: 'not_enrolled' };
+      throw new Error('Failed to fetch enrollment status');
+    }
+    const data = await response.json();
+    return data;
   } catch (error) {
-    return { hasPendingRequest: false, isEnrolled: false, isRejected: false };
+    return { status: 'not_enrolled' };
   }
 }
 
@@ -60,7 +64,12 @@ export default async function CourseDetailsPage({ params }: PageProps) {
 
   let enrollmentStatus = { hasPendingRequest: false, isEnrolled: false, isRejected: false };
   if (currentUser?.role === "student") {
-    enrollmentStatus = await fetchEnrollmentStatus(id, currentUser.id, token);
+    const status = await fetchEnrollmentStatus(id, currentUser.id, token);
+    enrollmentStatus = {
+      hasPendingRequest: status.status === "pending",
+      isEnrolled: status.status === "approved",
+      isRejected: status.status === "rejected",
+    };
   }
 
   return (

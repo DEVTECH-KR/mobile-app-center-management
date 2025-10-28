@@ -7,7 +7,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, Calendar } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-// Assume MOCK_COURSES, MOCK_EVENTS, MOCK_PAYMENTS are replaced by real data fetches if needed
 
 export default function DashboardPage() {
   const { user } = useAuth();

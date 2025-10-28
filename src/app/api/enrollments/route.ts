@@ -1,2 +1,2 @@
-// src/server/api/courses/course.schema.ts
+// src/app/api/enrollements/route.ts
 export { GET, POST } from '@/server/api/enrollments/enrollment.controller';

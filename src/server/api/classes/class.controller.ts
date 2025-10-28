@@ -7,6 +7,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const getTeachersForCourse = searchParams.get('getTeachersForCourse');
+    const getAvailableForEnrollment = searchParams.get('availableForEnrollment');
+    const courseId = searchParams.get('courseId');
+    const preferredLevel = searchParams.get('preferredLevel');
+
+    if (getAvailableForEnrollment && courseId) {
+      const classes = await ClassService.getAvailableClassesForEnrollment(courseId, preferredLevel || undefined);
+      return NextResponse.json({ classes }, { status: 200 });
+    }
+
     if (getTeachersForCourse) {
       const teachers = await ClassService.getTeachersByCourse(getTeachersForCourse);
       return NextResponse.json({ teachers }, { status: 200 });
@@ -15,6 +24,7 @@ export async function GET(request: NextRequest) {
       name: searchParams.get('name') || undefined,
       courseTitle: searchParams.get('courseTitle') || undefined,
       teacherName: searchParams.get('teacherName') || undefined,
+      courseId: searchParams.get('courseId') || undefined,
     };
     const pagination = {
       page: parseInt(searchParams.get('page') || '1'),
